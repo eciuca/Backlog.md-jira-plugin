@@ -1,0 +1,19 @@
+# Build output
+dist/
+node_modules/
+
+# Testing
+coverage/
+
+# Local config
+.backlog-jira/
+
+# OS
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+
+# Project-specific
+backlog/

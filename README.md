@@ -1,5 +1,4 @@
-# Backlog.md-jira-plugin (backlog-jira)
-Backlog.md jira integration plugin
+# backlog-jira
 
 Bidirectional sync plugin between Backlog.md and Jira via MCP Atlassian server.
 
