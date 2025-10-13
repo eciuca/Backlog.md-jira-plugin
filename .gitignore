@@ -15,5 +15,6 @@ coverage/
 .vscode/
 .idea/
 
-# Project-specific
-backlog/
+# Project-specific - Allow backlog directory for tracking plugin tasks
+# Only ignore local runtime data
+.backlog-jira-local/
