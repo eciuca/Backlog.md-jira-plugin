@@ -1,11 +1,11 @@
 ---
 id: task-302
 title: Set up NPM deployment for backlog-jira plugin
-status: In Progress
+status: Done
 assignee:
   - '@agent-k'
 created_date: '2025-10-13 14:34'
-updated_date: '2025-10-14 06:48'
+updated_date: '2025-10-14 10:13'
 labels:
   - deployment
   - npm
