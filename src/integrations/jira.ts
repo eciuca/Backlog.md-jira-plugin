@@ -64,35 +64,55 @@ export class JiraClient {
 		// Get credentials from environment
 		const jiraUrl = process.env.JIRA_URL;
 		const jiraUsername = process.env.JIRA_EMAIL || process.env.JIRA_USERNAME;
-		const jiraToken = process.env.JIRA_API_TOKEN;
+		const jiraApiToken = process.env.JIRA_API_TOKEN;
+		const jiraPersonalToken = process.env.JIRA_PERSONAL_TOKEN;
 
-		if (!jiraUrl || !jiraUsername || !jiraToken) {
+		// Validate credentials based on authentication method
+		if (!jiraUrl) {
+			throw new Error("Missing JIRA_URL environment variable.");
+		}
+
+		// Support both authentication methods:
+		// 1. API Token (Cloud): requires username + API token
+		// 2. Personal Access Token (Server/Data Center): requires only PAT
+		const hasApiTokenAuth = jiraUsername && jiraApiToken;
+		const hasPersonalTokenAuth = jiraPersonalToken;
+
+		if (!hasApiTokenAuth && !hasPersonalTokenAuth) {
 			throw new Error(
-				"Missing required Jira credentials. Please set JIRA_URL, JIRA_EMAIL (or JIRA_USERNAME), and JIRA_API_TOKEN environment variables.",
+				"Missing required Jira credentials. Please set either:\n" +
+				"  - For Jira Cloud: JIRA_URL, JIRA_EMAIL (or JIRA_USERNAME), and JIRA_API_TOKEN\n" +
+				"  - For Jira Server/Data Center: JIRA_URL and JIRA_PERSONAL_TOKEN",
 			);
 		}
+
+		// Build Docker args based on authentication method
+		const dockerArgs = ["run", "--rm", "-i", "-e", "JIRA_URL"];
+		const envVars: Record<string, string> = {
+			...process.env,
+			JIRA_URL: jiraUrl,
+		};
+
+		if (hasPersonalTokenAuth) {
+			// Personal Access Token authentication (Server/Data Center)
+			dockerArgs.push("-e", "JIRA_PERSONAL_TOKEN");
+			envVars.JIRA_PERSONAL_TOKEN = jiraPersonalToken!;
+			logger.debug("Using Personal Access Token authentication");
+		} else {
+			// API Token authentication (Cloud)
+			dockerArgs.push("-e", "JIRA_USERNAME", "-e", "JIRA_API_TOKEN");
+			envVars.JIRA_USERNAME = jiraUsername!;
+			envVars.JIRA_API_TOKEN = jiraApiToken!;
+			logger.debug("Using API Token authentication");
+		}
+
+		dockerArgs.push(this.dockerImage);
 
 		// Create transport using Docker to spawn MCP Atlassian server
 		const transport = new StdioClientTransport({
 			command: "docker",
-			args: [
-				"run",
-				"--rm",
-				"-i",
-				"-e",
-				"JIRA_URL",
-				"-e",
-				"JIRA_USERNAME",
-				"-e",
-				"JIRA_API_TOKEN",
-				this.dockerImage,
-			],
-			env: {
-				...process.env,
-				JIRA_URL: jiraUrl,
-				JIRA_USERNAME: jiraUsername,
-				JIRA_API_TOKEN: jiraToken,
-			},
+			args: dockerArgs,
+			env: envVars,
 		});
 
 		try {
@@ -193,6 +213,27 @@ export class JiraClient {
 	}
 
 	/**
+	 * Get all accessible Jira projects
+	 */
+	async getAllProjects(): Promise<Array<{ key: string; name: string; id: string }>> {
+		try {
+			const result = await this.callMcpTool("jira_get_all_projects", {}) as {
+				projects: Array<{
+					key: string;
+					name: string;
+					id: string;
+				}>;
+			};
+
+			logger.info({ count: result.projects.length }, "Retrieved Jira projects");
+			return result.projects;
+		} catch (error) {
+			logger.error({ error }, "Failed to get Jira projects");
+			throw error;
+		}
+	}
+
+	/**
 	 * Search for Jira issues using JQL
 	 */
 	async searchIssues(
@@ -210,30 +251,36 @@ export class JiraClient {
 				input.fields = options.fields;
 			}
 
-			const result = (await this.callMcpTool("jira_search", input)) as {
-				issues: Array<{
-					key: string;
-					id: string;
-					fields: {
-						summary: string;
-						description?: string;
-						status: { name: string };
-						issuetype: { name: string };
-						assignee?: { displayName: string };
-						reporter?: { displayName: string };
-						priority?: { name: string };
-						labels?: string[];
-						created: string;
-						updated: string;
-						[key: string]: unknown;
-					};
-				}>;
-				total: number;
-				startAt: number;
-				maxResults: number;
-			};
+		const result = (await this.callMcpTool("jira_search", input)) as {
+			issues: Array<{
+				key: string;
+				id: string;
+				fields: {
+					summary: string;
+					description?: string;
+					status: { name: string };
+					issuetype: { name: string };
+					assignee?: { displayName: string };
+					reporter?: { displayName: string };
+					priority?: { name: string };
+					labels?: string[];
+					created: string;
+					updated: string;
+					[key: string]: unknown;
+				};
+			}>;
+			total: number;
+			startAt: number;
+			maxResults: number;
+		};
 
-			const issues: JiraIssue[] = result.issues.map((issue) => ({
+		// Validate the result has the expected structure
+		if (!result || !Array.isArray(result.issues)) {
+			logger.error({ result }, "Invalid response from jira_search");
+			throw new Error("Invalid response from Jira API: missing or invalid 'issues' array");
+		}
+
+		const issues: JiraIssue[] = result.issues.map((issue) => ({
 				key: issue.key,
 				id: issue.id,
 				summary: issue.fields.summary,

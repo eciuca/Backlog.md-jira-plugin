@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 import { Command } from "commander";
 import packageJson from "../package.json";
+import { configureCommand } from "./commands/configure.ts";
 import { connectCommand } from "./commands/connect.ts";
 import { doctorCommand } from "./commands/doctor.ts";
 import { initCommand } from "./commands/init.ts";
@@ -25,6 +26,22 @@ program
 	.action(async () => {
 		try {
 			await initCommand();
+		} catch (error) {
+			console.error(
+				"Error:",
+				error instanceof Error ? error.message : String(error),
+			);
+			process.exit(1);
+		}
+	});
+
+program
+	.command("configure")
+	.description("Interactive wizard to configure Jira connection settings")
+	.option("--non-interactive", "Non-interactive mode for CI/CD environments")
+	.action(async (options) => {
+		try {
+			await configureCommand(options);
 		} catch (error) {
 			console.error(
 				"Error:",
