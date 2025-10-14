@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { confirm, input, password, select } from "@inquirer/prompts";
+import prompts from "prompts";
 import chalk from "chalk";
 import { JiraClient } from "../integrations/jira.ts";
 import { logger } from "../utils/logger.ts";
@@ -48,21 +48,30 @@ export async function configureCommand(
 	console.log(chalk.bold.green("Step 1: Jira Instance Type"));
 	console.log(chalk.gray("Select your Jira deployment type.\n"));
 
-	const instanceType = await select<"cloud" | "server">({
+	const instanceTypeResponse = await prompts({
+		type: "select",
+		name: "instanceType",
 		message: "What type of Jira instance are you using?",
 		choices: [
 			{
-				name: "Jira Cloud (atlassian.net)",
+				title: "Jira Cloud (atlassian.net)",
 				value: "cloud",
 				description: "Cloud-hosted Jira from Atlassian",
 			},
 			{
-				name: "Jira Server / Data Center (self-hosted)",
+				title: "Jira Server / Data Center (self-hosted)",
 				value: "server",
 				description: "Self-hosted Jira installation",
 			},
 		],
 	});
+
+	if (!instanceTypeResponse.instanceType) {
+		console.log(chalk.yellow("\n✗ Configuration cancelled.\n"));
+		process.exit(0);
+	}
+
+	const instanceType = instanceTypeResponse.instanceType as "cloud" | "server";
 
 	// Step 2: Jira URL
 	console.log(chalk.bold.green("\n\nStep 2: Jira URL"));
@@ -72,9 +81,11 @@ export async function configureCommand(
 	let urlValid = false;
 
 	while (!urlValid) {
-		jiraUrl = await input({
+		const urlResponse = await prompts({
+			type: "text",
+			name: "url",
 			message: "Jira URL:",
-			default:
+			initial:
 				instanceType === "cloud"
 					? "https://your-domain.atlassian.net"
 					: "https://jira.yourcompany.com",
@@ -91,6 +102,13 @@ export async function configureCommand(
 				return true;
 			},
 		});
+
+		if (!urlResponse.url) {
+			console.log(chalk.yellow("\n✗ Configuration cancelled.\n"));
+			process.exit(0);
+		}
+
+		jiraUrl = urlResponse.url;
 
 		// Remove trailing slash
 		jiraUrl = jiraUrl.trim().replace(/\/$/, "");
@@ -122,7 +140,9 @@ export async function configureCommand(
 		console.log(chalk.cyan("  2. Click 'Create API token'"));
 		console.log(chalk.cyan("  3. Copy the generated token\n"));
 
-		jiraEmail = await input({
+		const emailResponse = await prompts({
+			type: "text",
+			name: "email",
 			message: "Jira account email:",
 			validate: (value) => {
 				if (!value || value.trim() === "") {
@@ -135,9 +155,17 @@ export async function configureCommand(
 			},
 		});
 
-		jiraApiToken = await password({
+		if (!emailResponse.email) {
+			console.log(chalk.yellow("\n✗ Configuration cancelled.\n"));
+			process.exit(0);
+		}
+
+		jiraEmail = emailResponse.email;
+
+		const tokenResponse = await prompts({
+			type: "password",
+			name: "token",
 			message: "API token:",
-			mask: "*",
 			validate: (value) => {
 				if (!value || value.trim() === "") {
 					return "API token is required";
@@ -145,6 +173,13 @@ export async function configureCommand(
 				return true;
 			},
 		});
+
+		if (!tokenResponse.token) {
+			console.log(chalk.yellow("\n✗ Configuration cancelled.\n"));
+			process.exit(0);
+		}
+
+		jiraApiToken = tokenResponse.token;
 	} else {
 		console.log(
 			chalk.gray(
@@ -158,9 +193,10 @@ export async function configureCommand(
 			chalk.cyan("  3. Create a new token with appropriate permissions\n"),
 		);
 
-		jiraPersonalToken = await password({
+		const patResponse = await prompts({
+			type: "password",
+			name: "pat",
 			message: "Personal Access Token:",
-			mask: "*",
 			validate: (value) => {
 				if (!value || value.trim() === "") {
 					return "Personal Access Token is required";
@@ -168,6 +204,13 @@ export async function configureCommand(
 				return true;
 			},
 		});
+
+		if (!patResponse.pat) {
+			console.log(chalk.yellow("\n✗ Configuration cancelled.\n"));
+			process.exit(0);
+		}
+
+		jiraPersonalToken = patResponse.pat;
 	}
 
 	// Step 4: Test connection
@@ -251,14 +294,27 @@ export async function configureCommand(
 			value: "___manual___",
 		});
 
-		const projectChoice = await select({
+		const projectChoiceResponse = await prompts({
+			type: "select",
+			name: "choice",
 			message: "Select your project:",
-			choices: projectChoices,
-			pageSize: 10,
+			choices: projectChoices.map((c) => ({
+				title: c.name,
+				value: c.value,
+			})),
 		});
 
+		if (!projectChoiceResponse.choice) {
+			console.log(chalk.yellow("\n✗ Configuration cancelled.\n"));
+			process.exit(0);
+		}
+
+		const projectChoice = projectChoiceResponse.choice;
+
 		if (projectChoice === "___manual___") {
-			projectKey = await input({
+			const keyResponse = await prompts({
+				type: "text",
+				name: "key",
 				message: "Project key (e.g., PROJ, DEV):",
 				validate: (value) => {
 					if (!value || value.trim() === "") {
@@ -270,11 +326,20 @@ export async function configureCommand(
 					return true;
 				},
 			});
+
+			if (!keyResponse.key) {
+				console.log(chalk.yellow("\n✗ Configuration cancelled.\n"));
+				process.exit(0);
+			}
+
+			projectKey = keyResponse.key;
 		} else {
 			projectKey = projectChoice;
 		}
 	} else {
-		projectKey = await input({
+		const keyResponse = await prompts({
+			type: "text",
+			name: "key",
 			message: "Project key (e.g., PROJ, DEV):",
 			validate: (value) => {
 				if (!value || value.trim() === "") {
@@ -286,6 +351,13 @@ export async function configureCommand(
 				return true;
 			},
 		});
+
+		if (!keyResponse.key) {
+			console.log(chalk.yellow("\n✗ Configuration cancelled.\n"));
+			process.exit(0);
+		}
+
+		projectKey = keyResponse.key;
 	}
 
 	projectKey = projectKey.trim().toUpperCase();
@@ -295,20 +367,31 @@ export async function configureCommand(
 	console.log(chalk.gray("What type of issues should be synced?\n"));
 
 	// TODO: In the future, we could fetch available issue types from the project
-	const issueType = await select({
+	const issueTypeResponse = await prompts({
+		type: "select",
+		name: "issueType",
 		message: "Default issue type:",
 		choices: [
-			{ name: "Task", value: "Task" },
-			{ name: "Story", value: "Story" },
-			{ name: "Bug", value: "Bug" },
-			{ name: "Epic", value: "Epic" },
-			{ name: "Other (enter manually)", value: "___manual___" },
+			{ title: "Task", value: "Task" },
+			{ title: "Story", value: "Story" },
+			{ title: "Bug", value: "Bug" },
+			{ title: "Epic", value: "Epic" },
+			{ title: "Other (enter manually)", value: "___manual___" },
 		],
 	});
 
+	if (!issueTypeResponse.issueType) {
+		 console.log(chalk.yellow("\n✗ Configuration cancelled.\n"));
+			process.exit(0);
+	}
+
+	const issueType = issueTypeResponse.issueType;
+
 	let finalIssueType = issueType;
 	if (issueType === "___manual___") {
-		finalIssueType = await input({
+		const typeResponse = await prompts({
+			type: "text",
+			name: "type",
 			message: "Issue type name:",
 			validate: (value) => {
 				if (!value || value.trim() === "") {
@@ -317,6 +400,13 @@ export async function configureCommand(
 				return true;
 			},
 		});
+
+		if (!typeResponse.type) {
+			console.log(chalk.yellow("\n✗ Configuration cancelled.\n"));
+			process.exit(0);
+		}
+
+		finalIssueType = typeResponse.type;
 	}
 
 	// Step 7: JQL Filter (optional)
@@ -325,27 +415,52 @@ export async function configureCommand(
 		chalk.gray("Add a JQL filter to limit which issues are synced.\n"),
 	);
 
-	const useJqlFilter = await confirm({
+	const jqlFilterResponse = await prompts({
+		type: "confirm",
+		name: "useJqlFilter",
 		message: "Do you want to add a JQL filter?",
-		default: false,
+		initial: false,
 	});
 
+	if (jqlFilterResponse.useJqlFilter === undefined) {
+		console.log(chalk.yellow("\n✗ Configuration cancelled.\n"));
+		process.exit(0);
+	}
+
 	let jqlFilter = "";
-	if (useJqlFilter) {
-		jqlFilter = await input({
+	if (jqlFilterResponse.useJqlFilter) {
+		const filterResponse = await prompts({
+			type: "text",
+			name: "filter",
 			message: "JQL filter (e.g., labels = 'sync' AND status != Done):",
-			default: "",
+			initial: "",
 		});
+
+		if (filterResponse.filter === undefined) {
+			console.log(chalk.yellow("\n✗ Configuration cancelled.\n"));
+			process.exit(0);
+		}
+
+		jqlFilter = filterResponse.filter;
 	}
 
 	// Step 8: Status mapping
 	console.log(chalk.bold.green("\n\nStep 8: Status Mapping"));
 	console.log(chalk.gray("Map Backlog.md statuses to Jira statuses.\n"));
 
-	const useCustomMapping = await confirm({
+	const mappingResponse = await prompts({
+		type: "confirm",
+		name: "useCustomMapping",
 		message: "Customize status mapping? (default mapping will be used if No)",
-		default: false,
+		initial: false,
 	});
+
+	if (mappingResponse.useCustomMapping === undefined) {
+		console.log(chalk.yellow("\n✗ Configuration cancelled.\n"));
+		process.exit(0);
+	}
+
+	const useCustomMapping = mappingResponse.useCustomMapping;
 
 	const statusMapping: Record<string, string[]> = {
 		"To Do": ["To Do", "Open", "Backlog"],
@@ -371,29 +486,39 @@ export async function configureCommand(
 	console.log(chalk.bold.green("\n\nStep 9: Conflict Resolution Strategy"));
 	console.log(chalk.gray("How should conflicts be handled during sync?\n"));
 
-	const conflictStrategy = await select<
-		"prompt" | "prefer-backlog" | "prefer-jira"
-	>({
+	const conflictStrategyResponse = await prompts({
+		type: "select",
+		name: "strategy",
 		message: "Conflict resolution strategy:",
 		choices: [
 			{
-				name: "Prompt (ask for each conflict)",
+				title: "Prompt (ask for each conflict)",
 				value: "prompt",
 				description: "Interactive resolution for each conflict",
 			},
 			{
-				name: "Prefer Backlog",
+				title: "Prefer Backlog",
 				value: "prefer-backlog",
 				description: "Automatically use Backlog version when conflicts occur",
 			},
 			{
-				name: "Prefer Jira",
+				title: "Prefer Jira",
 				value: "prefer-jira",
 				description: "Automatically use Jira version when conflicts occur",
 			},
 		],
-		default: "prompt",
+		initial: 0,
 	});
+
+	if (!conflictStrategyResponse.strategy) {
+		console.log(chalk.yellow("\n✗ Configuration cancelled.\n"));
+		process.exit(0);
+	}
+
+	const conflictStrategy = conflictStrategyResponse.strategy as
+		| "prompt"
+		| "prefer-backlog"
+		| "prefer-jira";
 
 	// Step 10: Save configuration
 	console.log(chalk.bold.green("\n\nStep 10: Save Configuration"));
@@ -422,12 +547,17 @@ export async function configureCommand(
 	console.log(`  Conflict:      ${conflictStrategy}`);
 	console.log(chalk.gray("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"));
 
-	const confirmSave = await confirm({
+	const confirmSaveResponse = await prompts({
+		type: "confirm",
+		name: "confirmSave",
 		message: "Save this configuration?",
-		default: true,
+		initial: true,
 	});
 
-	if (!confirmSave) {
+	if (
+		confirmSaveResponse.confirmSave === undefined ||
+		!confirmSaveResponse.confirmSave
+	) {
 		console.log(chalk.yellow("\n✗ Configuration cancelled.\n"));
 		// Restore original environment
 		Object.assign(process.env, originalEnv);
@@ -457,10 +587,19 @@ export async function configureCommand(
 	console.log(chalk.green(`✓ Configuration saved to ${configPath}`));
 
 	// Ask about .env file
-	const saveToEnv = await confirm({
+	const saveToEnvResponse = await prompts({
+		type: "confirm",
+		name: "saveToEnv",
 		message: "Save credentials to .env file?",
-		default: true,
+		initial: true,
 	});
+
+	if (saveToEnvResponse.saveToEnv === undefined) {
+		console.log(chalk.yellow("\n✗ Configuration cancelled.\n"));
+		process.exit(0);
+	}
+
+	const saveToEnv = saveToEnvResponse.saveToEnv;
 
 	if (saveToEnv) {
 		const envPath = join(process.cwd(), ".env");
@@ -507,12 +646,19 @@ export async function configureCommand(
 				),
 			);
 
-			const addToGitignore = await confirm({
+			const addToGitignoreResponse = await prompts({
+				type: "confirm",
+				name: "addToGitignore",
 				message: "Add .env to .gitignore?",
-				default: true,
+				initial: true,
 			});
 
-			if (addToGitignore) {
+			if (addToGitignoreResponse.addToGitignore === undefined) {
+				console.log(chalk.yellow("\n✗ Configuration cancelled.\n"));
+				process.exit(0);
+			}
+
+			if (addToGitignoreResponse.addToGitignore) {
 				const newGitignore = `${gitignoreContent + (gitignoreContent.endsWith("\n") ? "" : "\n")}.env\n`;
 				writeFileSync(gitignorePath, newGitignore);
 				console.log(chalk.green("✓ Added .env to .gitignore"));

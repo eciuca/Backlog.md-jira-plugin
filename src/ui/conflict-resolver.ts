@@ -1,4 +1,4 @@
-import { confirm, input, select } from "@inquirer/prompts";
+import prompts from "prompts";
 import chalk from "chalk";
 import type { Conflict, FieldConflict } from "../commands/sync.ts";
 
@@ -36,36 +36,51 @@ export async function promptForConflictResolution(
 		displayFieldComparison(fieldConflict);
 
 		// Prompt for resolution choice
-		const choice = await select({
+		const choiceResponse = await prompts({
+			type: "select",
+			name: "choice",
 			message: `How do you want to resolve ${fieldConflict.field}?`,
 			choices: [
 				{
-					name: `${chalk.green("✓")} Use Backlog version`,
+					title: `${chalk.green("✓")} Use Backlog version`,
 					value: "backlog",
 					description: formatValue(fieldConflict.backlogValue),
 				},
 				{
-					name: `${chalk.blue("✓")} Use Jira version`,
+					title: `${chalk.blue("✓")} Use Jira version`,
 					value: "jira",
 					description: formatValue(fieldConflict.jiraValue),
 				},
 				{
-					name: `${chalk.yellow("✎")} Enter manually`,
+					title: `${chalk.yellow("✎")} Enter manually`,
 					value: "manual",
 					description: "Type a custom value",
 				},
 			],
 		});
 
+		if (!choiceResponse.choice) {
+			throw new Error("Conflict resolution cancelled by user");
+		}
+
+		const choice = choiceResponse.choice;
+
 		let resolvedValue: unknown;
 
 		if (choice === "manual") {
 			// Prompt for manual input
-			const manualValue = await input({
+			const manualResponse = await prompts({
+				type: "text",
+				name: "value",
 				message: `Enter value for ${fieldConflict.field}:`,
-				default: String(fieldConflict.backlogValue || ""),
+				initial: String(fieldConflict.backlogValue || ""),
 			});
-			resolvedValue = manualValue;
+
+			if (manualResponse.value === undefined) {
+				throw new Error("Conflict resolution cancelled by user");
+			}
+
+			resolvedValue = manualResponse.value;
 		} else if (choice === "backlog") {
 			resolvedValue = fieldConflict.backlogValue;
 		} else {
@@ -84,20 +99,30 @@ export async function promptForConflictResolution(
 	displayResolutionPreview(resolutions);
 
 	// Confirm changes
-	const confirmed = await confirm({
+	const confirmResponse = await prompts({
+		type: "confirm",
+		name: "confirmed",
 		message: "Apply these resolutions?",
-		default: true,
+		initial: true,
 	});
 
-	if (!confirmed) {
+	if (!confirmResponse.confirmed) {
 		throw new Error("Conflict resolution cancelled by user");
 	}
 
 	// Ask about saving preference
-	const savePreference = await confirm({
+	const savePreferenceResponse = await prompts({
+		type: "confirm",
+		name: "savePreference",
 		message: "Save this strategy as default for future conflicts?",
-		default: false,
+		initial: false,
 	});
+
+	if (savePreferenceResponse.savePreference === undefined) {
+		throw new Error("Conflict resolution cancelled by user");
+	}
+
+	const savePreference = savePreferenceResponse.savePreference;
 
 	return {
 		resolutions,

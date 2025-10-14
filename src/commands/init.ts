@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { checkbox, confirm, select } from "@inquirer/prompts";
+import prompts from "prompts";
 import chalk from "chalk";
 import { SyncStore } from "../state/store.ts";
 import {
@@ -108,10 +108,20 @@ async function setupAgentInstructions(): Promise<void> {
 		),
 	);
 
-	const shouldSetup = await confirm({
+	const response = await prompts({
+		type: "confirm",
+		name: "shouldSetup",
 		message: "Add plugin guidelines to agent instruction files?",
-		default: true,
+		initial: true,
 	});
+
+	// Handle user cancellation (Ctrl+C)
+	if (response.shouldSetup === undefined) {
+		logger.info("Setup cancelled.");
+		return;
+	}
+
+	const shouldSetup = response.shouldSetup;
 
 	if (!shouldSetup) {
 		logger.info(
@@ -154,20 +164,26 @@ async function setupAgentInstructions(): Promise<void> {
 		chalk.green(`\nFound ${existingFiles.length} agent instruction file(s):\n`),
 	);
 
-	const selectedFiles = await checkbox({
+	const filesResponse = await prompts({
+		type: "multiselect",
+		name: "selectedFiles",
 		message: "Select files to update:",
 		choices: existingFiles.map((filePath) => ({
-			name: filePath.replace(`${projectRoot}/`, ""),
+			title: filePath.replace(`${projectRoot}/`, ""),
 			value: filePath,
-			checked: true,
+			selected: true,
 		})),
-		validate: (answer) => {
-			if (answer.length === 0) {
-				return "You must select at least one file";
-			}
-			return true;
-		},
+		min: 1,
+		instructions: false,
 	});
+
+	// Handle user cancellation (Ctrl+C)
+	if (filesResponse.selectedFiles === undefined) {
+		logger.info("Setup cancelled.");
+		return;
+	}
+
+	const selectedFiles = filesResponse.selectedFiles;
 
 	if (selectedFiles.length === 0) {
 		logger.info("No files selected. Skipping agent instructions setup.");
@@ -183,22 +199,32 @@ async function setupAgentInstructions(): Promise<void> {
 		chalk.gray("  MCP Mode: Adds a short nudge to read MCP resources\n"),
 	);
 
-	const mode = await select<InstructionMode>({
+	const modeResponse = await prompts({
+		type: "select",
+		name: "mode",
 		message: "Select instruction mode:",
 		choices: [
 			{
-				name: "CLI Mode - Embedded guidelines (recommended for CLI-only usage)",
+				title: "CLI Mode - Embedded guidelines (recommended for CLI-only usage)",
 				value: "cli",
 				description: "Add comprehensive documentation directly to the file",
 			},
 			{
-				name: "MCP Mode - Reference to MCP resources (recommended if using MCP server)",
+				title: "MCP Mode - Reference to MCP resources (recommended if using MCP server)",
 				value: "mcp",
 				description: "Add a short reference to read MCP resources for details",
 			},
 		],
-		default: "cli",
+		initial: 0,
 	});
+
+	// Handle user cancellation (Ctrl+C)
+	if (modeResponse.mode === undefined) {
+		logger.info("Setup cancelled.");
+		return;
+	}
+
+	const mode = modeResponse.mode as InstructionMode;
 
 	// Apply instructions to selected files
 	console.log(
@@ -276,10 +302,19 @@ async function offerGitCommit(
 
 		console.log(chalk.cyan("\n💾 Git Commit\n"));
 
-		const shouldCommit = await confirm({
+		const commitResponse = await prompts({
+			type: "confirm",
+			name: "shouldCommit",
 			message: "Commit agent instruction changes to git?",
-			default: false,
+			initial: false,
 		});
+
+		// Handle user cancellation (Ctrl+C)
+		if (commitResponse.shouldCommit === undefined) {
+			return;
+		}
+
+		const shouldCommit = commitResponse.shouldCommit;
 
 		if (!shouldCommit) {
 			return;
