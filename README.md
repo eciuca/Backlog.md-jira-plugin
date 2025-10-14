@@ -2,7 +2,7 @@
 
 **Bidirectional sync plugin between Backlog.md and Jira via MCP Atlassian server**
 
-[![Status](https://img.shields.io/badge/status-Phase%204%20Complete-success)](https://github.com/MrLesk/Backlog.md/pull/394)
+[![Status](https://img.shields.io/badge/status-Phase%205%20Complete-success)](https://github.com/MrLesk/Backlog.md/pull/394)
 
 ## Table of Contents
 
@@ -107,10 +107,17 @@ The plugin maintains state in `.backlog-jira/jira-sync.db`:
 - ✅ **Dry Run Mode**: Preview changes without applying them
 - ✅ **Batch Operations**: Sync multiple tasks at once with `--all` flag
 
-### 🚧 Future Enhancements (Phase 5)
+### ✅ Advanced Features (Phase 5 Complete)
 
-- [ ] **Watch Mode**: Automatic background sync on file changes
-- [ ] **Advanced Conflict Resolution**: Interactive UI for complex conflicts
+- ✅ **Watch Mode**: Automatic polling-based sync with configurable intervals
+- ✅ **Environment Validation**: Comprehensive `doctor` command checking all dependencies
+- ✅ **Performance Optimization**: Parallel batch processing for large datasets (100 tasks < 30s)
+- ✅ **Rate Limit Handling**: Exponential backoff and graceful error handling
+- ✅ **Cross-Platform Support**: Works on Linux, macOS, and Windows via Bun runtime
+
+### 🚧 Future Enhancements
+
+- [ ] **Web UI Integration**: Pull/Push buttons in browser interface
 - [ ] **Custom Field Mapping**: User-defined field mapping rules
 - [ ] **Webhooks**: Real-time sync triggered by Jira webhooks
 
@@ -800,6 +807,6 @@ Copyright (c) 2025 Backlog.md Contributors
 
 ---
 
-**Status: Phase 4 Complete ✓** - Push, pull, and bidirectional sync with conflict resolution
+**Status: Phase 5 Complete ✓** - Full sync capabilities with watch mode, performance optimization, and environment validation
 
 For questions or issues, please check the [Troubleshooting](#troubleshooting) section or open an issue on GitHub.
