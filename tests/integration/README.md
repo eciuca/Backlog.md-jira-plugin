@@ -110,6 +110,78 @@ docker run --rm backlog-jira-test
 - This means the bundler is embedding absolute paths
 - Verify the build command includes `--external pino --external pino-pretty`
 
+## Jira Connection Test
+
+The `test-jira-connection-simple.sh` script tests that the plugin can successfully connect to a real Jira instance and retrieve data.
+
+### Authentication Methods
+
+Two authentication methods are supported:
+
+#### 1. **Jira Cloud - API Token** (Recommended for Cloud)
+
+```bash
+JIRA_URL='https://yoursite.atlassian.net' \
+JIRA_EMAIL='your-email@example.com' \
+JIRA_API_TOKEN='your-api-token' \
+./tests/integration/test-jira-connection-simple.sh
+```
+
+**How to get an API token:**
+1. Go to https://id.atlassian.com/manage-profile/security/api-tokens
+2. Click "Create API token"
+3. Give it a name and copy the token
+
+#### 2. **Jira Server/Data Center - Personal Access Token**
+
+```bash
+JIRA_URL='https://jira.yourcompany.com' \
+JIRA_PERSONAL_TOKEN='your-personal-access-token' \
+./tests/integration/test-jira-connection-simple.sh
+```
+
+**How to get a Personal Access Token:**
+1. Go to your Jira Server instance
+2. Navigate to Profile → Personal Access Tokens
+3. Create a new token with appropriate permissions
+
+### What the Test Does
+
+1. **Validates credentials** - Checks that required environment variables are set
+2. **Tests connection** - Uses `JiraClient.test()` to verify connectivity
+3. **Fetches data** - Retrieves the list of Jira projects to confirm API access
+
+### Expected Output
+
+```
+ℹ Simple Jira connection test
+ℹ Project root: /path/to/project
+
+ℹ Test 1: Checking Jira credentials
+✓ Jira credentials found (API Token)
+
+ℹ Test 2: Testing Jira connection with JiraClient.test()
+Connecting to Jira...
+✓ Jira connection successful
+✓ Jira connection test passed
+
+ℹ Test 3: Fetching Jira projects list
+Fetching Jira projects...
+✓ Successfully retrieved projects!
+Found 1 project(s)
+
+Projects:
+  - PROJ: Project Name
+✓ Jira data fetch successful
+
+✓ All Jira connection tests passed!
+
+ℹ Summary:
+  ✓ Jira credentials verified
+  ✓ Jira connection established
+  ✓ Jira API accessible and working
+```
+
 ## Adding More Integration Tests
 
 To add more integration tests:
