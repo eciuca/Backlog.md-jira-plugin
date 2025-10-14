@@ -94,7 +94,13 @@ const mockStore = {
 	),
 	updateSyncState: mock((backlogId: string, updates: any) => {}),
 	logOperation: mock(
-		(op: string, backlogId: string | null, jiraKey: string | null, outcome: string, details?: string) => {},
+		(
+			op: string,
+			backlogId: string | null,
+			jiraKey: string | null,
+			outcome: string,
+			details?: string,
+		) => {},
 	),
 	close: mock(() => {}),
 };
@@ -433,13 +439,13 @@ describe("concurrent edit conflict scenarios", () => {
 			// Setup: Both changed from baseline
 			const currentBacklogHash = "changedBacklogHash";
 			const currentJiraHash = "changedJiraHash";
-		const baseBacklogHash = "originalBacklogHash";
-		const baseJiraHash = "originalJiraHash";
+			const baseBacklogHash = "originalBacklogHash";
+			const baseJiraHash = "originalJiraHash";
 
-		// @ts-expect-error - Intentional string literal comparison for testing
-		const backlogChanged = currentBacklogHash !== baseBacklogHash;
-		// @ts-expect-error - Intentional string literal comparison for testing
-		const jiraChanged = currentJiraHash !== baseJiraHash;
+			// @ts-expect-error - Intentional string literal comparison for testing
+			const backlogChanged = currentBacklogHash !== baseBacklogHash;
+			// @ts-expect-error - Intentional string literal comparison for testing
+			const jiraChanged = currentJiraHash !== baseJiraHash;
 
 			// Both changed = Conflict
 			let state: "InSync" | "NeedsPush" | "NeedsPull" | "Conflict";
@@ -488,16 +494,16 @@ describe("concurrent edit conflict scenarios", () => {
 
 		it("should handle same-field concurrent edits", () => {
 			// Both users edited the same field with different values
-		const backlogValue = "Backlog's new value";
-		const jiraValue = "Jira's new value";
-		const baseValue = "Original value";
+			const backlogValue = "Backlog's new value";
+			const jiraValue = "Jira's new value";
+			const baseValue = "Original value";
 
-		// @ts-expect-error - Intentional string literal comparison for testing
-		const backlogChanged = backlogValue !== baseValue;
-		// @ts-expect-error - Intentional string literal comparison for testing
-		const jiraChanged = jiraValue !== baseValue;
-		// @ts-expect-error - Intentional string literal comparison for testing
-		const valuesDiffer = backlogValue !== jiraValue;
+			// @ts-expect-error - Intentional string literal comparison for testing
+			const backlogChanged = backlogValue !== baseValue;
+			// @ts-expect-error - Intentional string literal comparison for testing
+			const jiraChanged = jiraValue !== baseValue;
+			// @ts-expect-error - Intentional string literal comparison for testing
+			const valuesDiffer = backlogValue !== jiraValue;
 
 			// This is a genuine conflict: both changed, and they differ
 			expect(backlogChanged).toBe(true);
@@ -507,14 +513,14 @@ describe("concurrent edit conflict scenarios", () => {
 
 		it("should not conflict when both sides made identical changes", () => {
 			// Edge case: Both users made the exact same change independently
-		const backlogValue = "Same new value";
-		const jiraValue = "Same new value";
-		const baseValue = "Original value";
+			const backlogValue = "Same new value";
+			const jiraValue = "Same new value";
+			const baseValue = "Original value";
 
-		// @ts-expect-error - Intentional string literal comparison for testing
-		const backlogChanged = backlogValue !== baseValue;
-		// @ts-expect-error - Intentional string literal comparison for testing
-		const jiraChanged = jiraValue !== baseValue;
+			// @ts-expect-error - Intentional string literal comparison for testing
+			const backlogChanged = backlogValue !== baseValue;
+			// @ts-expect-error - Intentional string literal comparison for testing
+			const jiraChanged = jiraValue !== baseValue;
 			const valuesMatch = backlogValue === jiraValue;
 
 			// Both changed, but to the same value - can auto-resolve
@@ -793,11 +799,11 @@ describe("concurrent edit conflict scenarios", () => {
 			// Simulate reading snapshots while they're being updated
 			const snapshots = mockStore.getSnapshots("task-1");
 
-		// Should get consistent state
-		expect(snapshots.backlog).toBeDefined();
-		expect(snapshots.jira).toBeDefined();
-		expect(snapshots.backlog?.backlogId).toBe("task-1");
-		expect(snapshots.jira?.backlogId).toBe("task-1");
+			// Should get consistent state
+			expect(snapshots.backlog).toBeDefined();
+			expect(snapshots.jira).toBeDefined();
+			expect(snapshots.backlog?.backlogId).toBe("task-1");
+			expect(snapshots.jira?.backlogId).toBe("task-1");
 		});
 
 		it("should maintain consistency across multiple task syncs", async () => {

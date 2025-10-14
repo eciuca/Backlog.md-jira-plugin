@@ -8,18 +8,18 @@ import {
 
 describe("PlainTextDisplayAdapter", () => {
 	it("should add Jira metadata section to plain text output", () => {
-	const task: TaskWithJira = {
-		id: "task-1",
-		title: "Test Task",
-		status: "In Progress",
-		assignee: "@user",
-		labels: [],
-		description: "Test description",
-		jiraKey: "PROJ-123",
-		jiraUrl: "https://jira.example.com/browse/PROJ-123",
-		jiraLastSync: "2025-01-02T10:00:00Z",
-		jiraSyncState: "InSync",
-	};
+		const task: TaskWithJira = {
+			id: "task-1",
+			title: "Test Task",
+			status: "In Progress",
+			assignee: "@user",
+			labels: [],
+			description: "Test description",
+			jiraKey: "PROJ-123",
+			jiraUrl: "https://jira.example.com/browse/PROJ-123",
+			jiraLastSync: "2025-01-02T10:00:00Z",
+			jiraSyncState: "InSync",
+		};
 
 		const content = "# Test\nContent";
 		const coreFormatter = (t: Task, c: string, _f?: string) => {
@@ -40,11 +40,11 @@ describe("PlainTextDisplayAdapter", () => {
 	});
 
 	it("should not add Jira section if no Jira metadata", () => {
-	const task: Task = {
-		id: "task-1",
-		title: "Test Task",
-		status: "To Do",
-	};
+		const task: Task = {
+			id: "task-1",
+			title: "Test Task",
+			status: "To Do",
+		};
 
 		const content = "# Test\nContent";
 		const coreFormatter = (t: Task, _c: string, _f?: string) => {
@@ -58,13 +58,13 @@ describe("PlainTextDisplayAdapter", () => {
 	});
 
 	it("should show correct sync state icons", () => {
-	const createTaskWithState = (state: string): TaskWithJira => ({
-		id: "task-1",
-		title: "Test",
-		status: "To Do",
-		jiraKey: "PROJ-1",
-		jiraSyncState: state as any,
-	});
+		const createTaskWithState = (state: string): TaskWithJira => ({
+			id: "task-1",
+			title: "Test",
+			status: "To Do",
+			jiraKey: "PROJ-1",
+			jiraSyncState: state as any,
+		});
 
 		const coreFormatter = (_t: Task, _c: string, _f?: string) => "Core";
 
@@ -112,17 +112,17 @@ describe("PlainTextDisplayAdapter", () => {
 
 describe("BlessedDisplayAdapter", () => {
 	it("should add Jira metadata to blessed UI body content", () => {
-	const task: TaskWithJira = {
-		id: "task-1",
-		title: "Test Task",
-		status: "In Progress",
-		assignee: "@user",
-		labels: [],
-		jiraKey: "PROJ-123",
-		jiraUrl: "https://jira.example.com/browse/PROJ-123",
-		jiraLastSync: "2025-01-02T10:00:00Z",
-		jiraSyncState: "InSync",
-	};
+		const task: TaskWithJira = {
+			id: "task-1",
+			title: "Test Task",
+			status: "In Progress",
+			assignee: "@user",
+			labels: [],
+			jiraKey: "PROJ-123",
+			jiraUrl: "https://jira.example.com/browse/PROJ-123",
+			jiraLastSync: "2025-01-02T10:00:00Z",
+			jiraSyncState: "InSync",
+		};
 
 		const coreGenerator = (_t: Task, _r: string) => ({
 			headerContent: ["Header"],
@@ -151,11 +151,11 @@ describe("BlessedDisplayAdapter", () => {
 	});
 
 	it("should not modify content if no Jira metadata", () => {
-	const task: Task = {
-		id: "task-1",
-		title: "Test Task",
-		status: "To Do",
-	};
+		const task: Task = {
+			id: "task-1",
+			title: "Test Task",
+			status: "To Do",
+		};
 
 		const coreGenerator = (_t: Task, _r: string) => ({
 			headerContent: ["Header"],
@@ -179,12 +179,12 @@ describe("BlessedDisplayAdapter", () => {
 	});
 
 	it("should insert Jira metadata after Details section", () => {
-	const task: TaskWithJira = {
-		id: "task-1",
-		title: "Test Task",
-		status: "To Do",
-		jiraKey: "PROJ-1",
-	};
+		const task: TaskWithJira = {
+			id: "task-1",
+			title: "Test Task",
+			status: "To Do",
+			jiraKey: "PROJ-1",
+		};
 
 		const coreGenerator = (_t: Task, _r: string) => ({
 			headerContent: ["Header"],
@@ -214,13 +214,13 @@ describe("BlessedDisplayAdapter", () => {
 	});
 
 	it("should use correct colors for sync states", () => {
-	const createTaskWithState = (state: string): TaskWithJira => ({
-		id: "task-1",
-		title: "Test",
-		status: "To Do",
-		jiraKey: "PROJ-1",
-		jiraSyncState: state as any,
-	});
+		const createTaskWithState = (state: string): TaskWithJira => ({
+			id: "task-1",
+			title: "Test",
+			status: "To Do",
+			jiraKey: "PROJ-1",
+			jiraSyncState: state as any,
+		});
 
 		const coreGenerator = (_t: Task, _r: string) => ({
 			headerContent: [],

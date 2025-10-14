@@ -10,6 +10,13 @@ import { logger } from "../utils/logger.ts";
 import type { BacklogTask as Task } from "../integrations/backlog.ts";
 type CoreFormatter = (task: Task, content: string, filePath?: string) => string;
 
+interface TaskWithJira extends Task {
+	jiraKey?: string;
+	jiraUrl?: string;
+	jiraLastSync?: string;
+	jiraSyncState?: string;
+}
+
 /**
  * View a task with Jira metadata
  */
@@ -28,15 +35,16 @@ async function viewTask(
 
 		// Get Jira mapping if exists
 		const mapping = store.getMapping(taskId);
+		let taskWithJira: TaskWithJira = task;
 		if (mapping) {
-			// Note: In real implementation, these properties would be added via a wrapper type
-			// For now, we use type assertion to add Jira metadata dynamically
 			const syncState = store.getSyncState(taskId);
-			const taskWithJira = task as any;
-			taskWithJira.jiraKey = mapping.jiraKey;
-			taskWithJira.jiraUrl = `https://your-domain.atlassian.net/browse/${mapping.jiraKey}`;
-			taskWithJira.jiraLastSync = syncState?.lastSyncAt || "Never";
-			taskWithJira.jiraSyncState = syncState?.conflictState || "Unknown";
+			taskWithJira = {
+				...task,
+				jiraKey: mapping.jiraKey,
+				jiraUrl: `https://your-domain.atlassian.net/browse/${mapping.jiraKey}`,
+				jiraLastSync: syncState?.lastSyncAt || "Never",
+				jiraSyncState: syncState?.conflictState || "Unknown",
+			};
 		}
 
 		// Get core formatter
@@ -52,7 +60,7 @@ async function viewTask(
 		if (options.plain) {
 			// Use adapter to add Jira metadata
 			const formatted = formatTaskWithJira(
-				task,
+				taskWithJira,
 				content,
 				undefined,
 				coreFormatter,

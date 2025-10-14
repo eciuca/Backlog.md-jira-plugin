@@ -37,12 +37,15 @@ const mockJiraClient = {
 };
 
 const mockStore = {
-	getMapping: mock((backlogId: string) => ({
-		backlogId: "task-1",
-		jiraKey: "PROJ-1",
-		createdAt: new Date().toISOString(),
-		updatedAt: new Date().toISOString(),
-	} as any)),
+	getMapping: mock(
+		(backlogId: string) =>
+			({
+				backlogId: "task-1",
+				jiraKey: "PROJ-1",
+				createdAt: new Date().toISOString(),
+				updatedAt: new Date().toISOString(),
+			}) as any,
+	),
 	getAllMappings: mock(() => new Map([["task-1", "PROJ-1"]])),
 	getSnapshots: mock((backlogId: string) => ({
 		backlog: {
@@ -65,7 +68,13 @@ const mockStore = {
 	),
 	updateSyncState: mock((backlogId: string, updates: any) => {}),
 	logOperation: mock(
-		(op: string, backlogId: string | null, jiraKey: string | null, outcome: string, details?: string) => {},
+		(
+			op: string,
+			backlogId: string | null,
+			jiraKey: string | null,
+			outcome: string,
+			details?: string,
+		) => {},
 	),
 	close: mock(() => {}),
 };

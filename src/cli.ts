@@ -1,5 +1,6 @@
 #!/usr/bin/env bun
 import { Command } from "commander";
+import packageJson from "../package.json";
 import { connectCommand } from "./commands/connect.ts";
 import { doctorCommand } from "./commands/doctor.ts";
 import { initCommand } from "./commands/init.ts";
@@ -10,7 +11,6 @@ import { registerStatusCommand } from "./commands/status.ts";
 import { sync } from "./commands/sync.ts";
 import { registerViewCommand } from "./commands/view.ts";
 import { watch } from "./commands/watch.ts";
-import packageJson from "../package.json";
 
 const program = new Command();
 

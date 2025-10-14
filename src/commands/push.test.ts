@@ -33,40 +33,57 @@ const mockJiraClient = {
 			updated: "2025-01-01T00:00:00Z",
 		}),
 	),
-	createIssue: mock((project: string, issueType: string, summary: string, fields: any) =>
-		Promise.resolve({
-			key: "PROJ-2",
-			id: "10002",
-			summary: "New Task",
-			description: "New description",
-			status: "To Do",
-			issueType: "Task",
-			created: "2025-01-01T00:00:00Z",
-			updated: "2025-01-01T00:00:00Z",
-		}),
+	createIssue: mock(
+		(project: string, issueType: string, summary: string, fields: any) =>
+			Promise.resolve({
+				key: "PROJ-2",
+				id: "10002",
+				summary: "New Task",
+				description: "New description",
+				status: "To Do",
+				issueType: "Task",
+				created: "2025-01-01T00:00:00Z",
+				updated: "2025-01-01T00:00:00Z",
+			}),
 	),
 	updateIssue: mock((issueKey: string, updates: any) => Promise.resolve()),
-	transitionIssue: mock((issueKey: string, statusName: string) => Promise.resolve()),
+	transitionIssue: mock((issueKey: string, statusName: string) =>
+		Promise.resolve(),
+	),
 };
 
 const mockStore = {
 	getMapping: mock((backlogId: string) => null as any),
 	addMapping: mock((backlogId: string, jiraKey: string) => {}),
 	getAllMappings: mock(() => new Map()),
-	getSnapshots: mock((backlogId: string) => ({ backlog: null as any, jira: null as any })),
+	getSnapshots: mock((backlogId: string) => ({
+		backlog: null as any,
+		jira: null as any,
+	})),
 	setSnapshot: mock(
 		(backlogId: string, side: string, hash: string, payload: unknown) => {},
 	),
 	updateSyncState: mock((backlogId: string, updates: any) => {}),
 	logOperation: mock(
-		(op: string, backlogId: string | null, jiraKey: string | null, outcome: string, details?: string) => {},
+		(
+			op: string,
+			backlogId: string | null,
+			jiraKey: string | null,
+			outcome: string,
+			details?: string,
+		) => {},
 	),
 	close: mock(() => {}),
 };
 
 // Mock classifySyncState
 const mockClassifySyncState = mock(
-	(backlogHash: string, jiraHash: string, baseBacklogHash: string, baseJiraHash: string) => ({
+	(
+		backlogHash: string,
+		jiraHash: string,
+		baseBacklogHash: string,
+		baseJiraHash: string,
+	) => ({
 		state: "InSync",
 	}),
 );
@@ -123,19 +140,19 @@ describe("push command", () => {
 
 			mockBacklogClient.getTask.mockResolvedValue(task);
 
-		const createdIssue = {
-			key: "PROJ-100",
-			id: "10100",
-			summary: "New Feature",
-			description: "Implement feature",
-			status: "To Do",
-			issueType: "Task",
-			assignee: "alice",
-			priority: "high",
-			labels: ["backend", "feature"],
-			created: "2025-01-01T00:00:00Z",
-			updated: "2025-01-01T00:00:00Z",
-		};
+			const createdIssue = {
+				key: "PROJ-100",
+				id: "10100",
+				summary: "New Feature",
+				description: "Implement feature",
+				status: "To Do",
+				issueType: "Task",
+				assignee: "alice",
+				priority: "high",
+				labels: ["backend", "feature"],
+				created: "2025-01-01T00:00:00Z",
+				updated: "2025-01-01T00:00:00Z",
+			};
 
 			mockJiraClient.createIssue.mockResolvedValue(createdIssue);
 
@@ -201,12 +218,12 @@ describe("push command", () => {
 			// - Fields are updated correctly
 			// - Snapshots are updated
 
-		const mapping = {
-			backlogId: "task-1",
-			jiraKey: "PROJ-1",
-			createdAt: new Date().toISOString(),
-			updatedAt: new Date().toISOString(),
-		};
+			const mapping = {
+				backlogId: "task-1",
+				jiraKey: "PROJ-1",
+				createdAt: new Date().toISOString(),
+				updatedAt: new Date().toISOString(),
+			};
 			mockStore.getMapping.mockReturnValue(mapping);
 
 			const task = {
@@ -219,19 +236,19 @@ describe("push command", () => {
 				labels: ["frontend"],
 			};
 
-		const currentIssue = {
-			key: "PROJ-1",
-			id: "10001",
-			summary: "Old Task",
-			description: "Old description",
-			status: "To Do",
-			issueType: "Task",
-			assignee: "alice",
-			priority: "high",
-			labels: ["backend"],
-			created: "2025-01-01T00:00:00Z",
-			updated: "2025-01-01T00:00:00Z",
-		};
+			const currentIssue = {
+				key: "PROJ-1",
+				id: "10001",
+				summary: "Old Task",
+				description: "Old description",
+				status: "To Do",
+				issueType: "Task",
+				assignee: "alice",
+				priority: "high",
+				labels: ["backend"],
+				created: "2025-01-01T00:00:00Z",
+				updated: "2025-01-01T00:00:00Z",
+			};
 
 			mockBacklogClient.getTask.mockResolvedValue(task);
 			mockJiraClient.getIssue.mockResolvedValue(currentIssue);
@@ -265,19 +282,19 @@ describe("push command", () => {
 				labels: ["backend"],
 			};
 
-		const currentIssue = {
-			key: "PROJ-1",
-			id: "10001",
-			summary: "Same Task",
-			description: "Old description",
-			status: "To Do",
-			issueType: "Task",
-			assignee: "alice",
-			priority: "high",
-			labels: ["backend"],
-			created: "2025-01-01T00:00:00Z",
-			updated: "2025-01-01T00:00:00Z",
-		};
+			const currentIssue = {
+				key: "PROJ-1",
+				id: "10001",
+				summary: "Same Task",
+				description: "Old description",
+				status: "To Do",
+				issueType: "Task",
+				assignee: "alice",
+				priority: "high",
+				labels: ["backend"],
+				created: "2025-01-01T00:00:00Z",
+				updated: "2025-01-01T00:00:00Z",
+			};
 
 			// Build updates (only changed fields)
 			const updates: Record<string, unknown> = {};
@@ -299,42 +316,42 @@ describe("push command", () => {
 			// - AC #1: Conflict detection in push
 			// - 3-way merge detects conflicts
 
-		const mapping = {
-			backlogId: "task-1",
-			jiraKey: "PROJ-1",
-			createdAt: new Date().toISOString(),
-			updatedAt: new Date().toISOString(),
-		};
-		mockStore.getMapping.mockReturnValue(mapping);
-
-		// Backlog changed
-		const backlogHash = "changedBacklogHash";
-		// Jira also changed
-		const jiraHash = "changedJiraHash";
-		// Base snapshot
-		const baseHash = "originalHash";
-
-		mockStore.getSnapshots.mockReturnValue({
-			backlog: {
+			const mapping = {
 				backlogId: "task-1",
-				side: "backlog" as const,
-				hash: baseHash,
-				payload: "{}",
+				jiraKey: "PROJ-1",
+				createdAt: new Date().toISOString(),
 				updatedAt: new Date().toISOString(),
-			},
-			jira: {
-				backlogId: "task-1",
-				side: "jira" as const,
-				hash: baseHash,
-				payload: "{}",
-				updatedAt: new Date().toISOString(),
-			},
-		});
+			};
+			mockStore.getMapping.mockReturnValue(mapping);
 
-		// Mock classifySyncState to return conflict
-		mockClassifySyncState.mockReturnValue({
-			state: "Conflict",
-		});
+			// Backlog changed
+			const backlogHash = "changedBacklogHash";
+			// Jira also changed
+			const jiraHash = "changedJiraHash";
+			// Base snapshot
+			const baseHash = "originalHash";
+
+			mockStore.getSnapshots.mockReturnValue({
+				backlog: {
+					backlogId: "task-1",
+					side: "backlog" as const,
+					hash: baseHash,
+					payload: "{}",
+					updatedAt: new Date().toISOString(),
+				},
+				jira: {
+					backlogId: "task-1",
+					side: "jira" as const,
+					hash: baseHash,
+					payload: "{}",
+					updatedAt: new Date().toISOString(),
+				},
+			});
+
+			// Mock classifySyncState to return conflict
+			mockClassifySyncState.mockReturnValue({
+				state: "Conflict",
+			});
 
 			const result = mockClassifySyncState(
 				backlogHash,
