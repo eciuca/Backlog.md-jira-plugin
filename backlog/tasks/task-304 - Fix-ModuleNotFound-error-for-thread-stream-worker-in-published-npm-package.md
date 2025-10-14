@@ -1,11 +1,11 @@
 ---
 id: task-304
 title: Fix ModuleNotFound error for thread-stream worker in published npm package
-status: In Progress
+status: Done
 assignee:
   - '@agent'
 created_date: '2025-10-14 08:01'
-updated_date: '2025-10-14 08:09'
+updated_date: '2025-10-14 08:13'
 labels:
   - bug
   - bundling
@@ -23,7 +23,7 @@ The published npm package (backlog-jira@0.1.1) fails when running 'backlog-jira 
 <!-- AC:BEGIN -->
 - [x] #1 Identify why thread-stream worker module is not being resolved in the bundled dist/cli.js
 - [x] #2 Fix the build configuration to properly bundle or include thread-stream dependencies
-- [ ] #3 Test the fix by publishing to npm and running 'backlog-jira init' from a clean install
+- [x] #3 Test the fix by publishing to npm and running 'backlog-jira init' from a clean install
 - [x] #4 Verify the fix works in both local development and global npm installation scenarios
 <!-- AC:END -->
 
