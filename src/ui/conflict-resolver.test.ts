@@ -31,8 +31,8 @@ describe("Conflict Resolver Utilities", () => {
 				baseValue: "To Do",
 			},
 		],
-		backlogTask: {} as any,
-		jiraIssue: {} as any,
+		backlogTask: {} as Record<string, unknown>,
+		jiraIssue: {} as Record<string, unknown>,
 		baseBacklog: {},
 		baseJira: {},
 	};
@@ -73,7 +73,7 @@ describe("Conflict Resolver Utilities", () => {
 			const maxWidth = 70;
 			const truncated =
 				longText.length > maxWidth
-					? longText.substring(0, maxWidth - 3) + "..."
+					? `${longText.substring(0, maxWidth - 3)}...`
 					: longText;
 
 			expect(truncated.length).toBe(maxWidth);
@@ -85,7 +85,7 @@ describe("Conflict Resolver Utilities", () => {
 			const maxWidth = 70;
 			const result =
 				shortText.length > maxWidth
-					? shortText.substring(0, maxWidth - 3) + "..."
+					? `${shortText.substring(0, maxWidth - 3)}...`
 					: shortText;
 
 			expect(result).toBe(shortText);

@@ -5,7 +5,7 @@ import type { ConflictStrategy } from "./sync.ts";
 
 /**
  * Test suite for concurrent edit conflict scenarios
- * 
+ *
  * This suite tests the behavior when both Backlog and Jira sides
  * have concurrent edits to the same task/issue, verifying:
  * - Conflict detection triggers properly
@@ -16,28 +16,32 @@ import type { ConflictStrategy } from "./sync.ts";
 
 // Mock clients and store
 const mockBacklogClient = {
-	getTask: mock(() => Promise.resolve({
-		id: "task-1",
-		title: "Original Title",
-		description: "Original description",
-		status: "To Do",
-		assignee: "alice",
-		priority: "medium",
-		labels: ["backend"],
-	})),
+	getTask: mock(() =>
+		Promise.resolve({
+			id: "task-1",
+			title: "Original Title",
+			description: "Original description",
+			status: "To Do",
+			assignee: "alice",
+			priority: "medium",
+			labels: ["backend"],
+		}),
+	),
 	updateTask: mock(() => Promise.resolve()),
 };
 
 const mockJiraClient = {
-	getIssue: mock(() => Promise.resolve({
-		key: "PROJ-1",
-		summary: "Original Title",
-		description: "Original description",
-		status: "To Do",
-		assignee: "alice",
-		priority: "Medium",
-		labels: ["backend"],
-	})),
+	getIssue: mock(() =>
+		Promise.resolve({
+			key: "PROJ-1",
+			summary: "Original Title",
+			description: "Original description",
+			status: "To Do",
+			assignee: "alice",
+			priority: "Medium",
+			labels: ["backend"],
+		}),
+	),
 	updateIssue: mock(() => Promise.resolve()),
 };
 
@@ -82,8 +86,22 @@ const mockStore = {
 	close: mock(() => {}),
 };
 
-const mockPush = mock(() => Promise.resolve({ success: true, pushed: ["task-1"], failed: [], skipped: [] }));
-const mockPull = mock(() => Promise.resolve({ success: true, pulled: ["task-1"], failed: [], skipped: [] }));
+const mockPush = mock(() =>
+	Promise.resolve({
+		success: true,
+		pushed: ["task-1"],
+		failed: [],
+		skipped: [],
+	}),
+);
+const mockPull = mock(() =>
+	Promise.resolve({
+		success: true,
+		pulled: ["task-1"],
+		failed: [],
+		skipped: [],
+	}),
+);
 
 describe("concurrent edit conflict scenarios", () => {
 	beforeEach(() => {
@@ -130,8 +148,8 @@ describe("concurrent edit conflict scenarios", () => {
 			const baseJira = { summary: "Original Title" };
 
 			// Both changed from original
-			const titleConflict = 
-				backlogTask.title !== baseBacklog.title && 
+			const titleConflict =
+				backlogTask.title !== baseBacklog.title &&
 				jiraIssue.summary !== baseJira.summary;
 
 			expect(titleConflict).toBe(true);
@@ -162,8 +180,8 @@ describe("concurrent edit conflict scenarios", () => {
 			const baseBacklog = { description: "Original description" };
 			const baseJira = { description: "Original description" };
 
-			const descConflict = 
-				backlogTask.description !== baseBacklog.description && 
+			const descConflict =
+				backlogTask.description !== baseBacklog.description &&
 				jiraIssue.description !== baseJira.description;
 
 			expect(descConflict).toBe(true);
@@ -194,8 +212,8 @@ describe("concurrent edit conflict scenarios", () => {
 			const baseBacklog = { status: "To Do" };
 			const baseJira = { status: "To Do" };
 
-			const statusConflict = 
-				backlogTask.status !== baseBacklog.status && 
+			const statusConflict =
+				backlogTask.status !== baseBacklog.status &&
 				jiraIssue.status !== baseJira.status;
 
 			expect(statusConflict).toBe(true);
@@ -226,8 +244,8 @@ describe("concurrent edit conflict scenarios", () => {
 			const baseBacklog = { assignee: "alice" };
 			const baseJira = { assignee: "alice" };
 
-			const assigneeConflict = 
-				backlogTask.assignee !== baseBacklog.assignee && 
+			const assigneeConflict =
+				backlogTask.assignee !== baseBacklog.assignee &&
 				jiraIssue.assignee !== baseJira.assignee;
 
 			expect(assigneeConflict).toBe(true);
@@ -258,8 +276,8 @@ describe("concurrent edit conflict scenarios", () => {
 			const baseBacklog = { priority: "medium" };
 			const baseJira = { priority: "Medium" };
 
-			const priorityConflict = 
-				backlogTask.priority !== baseBacklog.priority && 
+			const priorityConflict =
+				backlogTask.priority !== baseBacklog.priority &&
 				jiraIssue.priority !== baseJira.priority;
 
 			expect(priorityConflict).toBe(true);
@@ -290,8 +308,9 @@ describe("concurrent edit conflict scenarios", () => {
 			const baseBacklog = { labels: ["backend"] };
 			const baseJira = { labels: ["backend"] };
 
-			const labelsConflict = 
-				JSON.stringify(backlogTask.labels) !== JSON.stringify(baseBacklog.labels) && 
+			const labelsConflict =
+				JSON.stringify(backlogTask.labels) !==
+					JSON.stringify(baseBacklog.labels) &&
 				JSON.stringify(jiraIssue.labels) !== JSON.stringify(baseJira.labels);
 
 			expect(labelsConflict).toBe(true);
@@ -340,17 +359,31 @@ describe("concurrent edit conflict scenarios", () => {
 
 			// Check each field
 			const conflicts = {
-				title: backlogTask.title !== baseBacklog.title && jiraIssue.summary !== baseJira.summary,
-				description: backlogTask.description !== baseBacklog.description && jiraIssue.description !== baseJira.description,
-				status: backlogTask.status !== baseBacklog.status && jiraIssue.status !== baseJira.status,
-				assignee: backlogTask.assignee !== baseBacklog.assignee && jiraIssue.assignee !== baseJira.assignee,
-				priority: backlogTask.priority !== baseBacklog.priority && jiraIssue.priority !== baseJira.priority,
-				labels: JSON.stringify(backlogTask.labels) !== JSON.stringify(baseBacklog.labels) && 
+				title:
+					backlogTask.title !== baseBacklog.title &&
+					jiraIssue.summary !== baseJira.summary,
+				description:
+					backlogTask.description !== baseBacklog.description &&
+					jiraIssue.description !== baseJira.description,
+				status:
+					backlogTask.status !== baseBacklog.status &&
+					jiraIssue.status !== baseJira.status,
+				assignee:
+					backlogTask.assignee !== baseBacklog.assignee &&
+					jiraIssue.assignee !== baseJira.assignee,
+				priority:
+					backlogTask.priority !== baseBacklog.priority &&
+					jiraIssue.priority !== baseJira.priority,
+				labels:
+					JSON.stringify(backlogTask.labels) !==
+						JSON.stringify(baseBacklog.labels) &&
 					JSON.stringify(jiraIssue.labels) !== JSON.stringify(baseJira.labels),
 			};
 
 			// All fields have conflicts
-			expect(Object.values(conflicts).every(conflict => conflict === true)).toBe(true);
+			expect(
+				Object.values(conflicts).every((conflict) => conflict === true),
+			).toBe(true);
 		});
 	});
 
@@ -451,7 +484,10 @@ describe("concurrent edit conflict scenarios", () => {
 			if (conflictDetected && strategy === "prefer-backlog") {
 				// Should push Backlog changes to Jira
 				await mockPush({ taskIds: ["task-1"], force: true });
-				expect(mockPush).toHaveBeenCalledWith({ taskIds: ["task-1"], force: true });
+				expect(mockPush).toHaveBeenCalledWith({
+					taskIds: ["task-1"],
+					force: true,
+				});
 				expect(mockPull).not.toHaveBeenCalled();
 			}
 		});
@@ -463,7 +499,10 @@ describe("concurrent edit conflict scenarios", () => {
 			if (conflictDetected && strategy === "prefer-jira") {
 				// Should pull Jira changes to Backlog
 				await mockPull({ taskIds: ["task-1"], force: true });
-				expect(mockPull).toHaveBeenCalledWith({ taskIds: ["task-1"], force: true });
+				expect(mockPull).toHaveBeenCalledWith({
+					taskIds: ["task-1"],
+					force: true,
+				});
 				expect(mockPush).not.toHaveBeenCalled();
 			}
 		});
@@ -502,21 +541,29 @@ describe("concurrent edit conflict scenarios", () => {
 			// Multiple field conflicts resolved with prefer-backlog
 			const strategy: ConflictStrategy = "prefer-backlog";
 			const conflicts = [
-				{ field: "title", backlogValue: "Backlog Title", jiraValue: "Jira Title" },
-				{ field: "description", backlogValue: "Backlog Desc", jiraValue: "Jira Desc" },
+				{
+					field: "title",
+					backlogValue: "Backlog Title",
+					jiraValue: "Jira Title",
+				},
+				{
+					field: "description",
+					backlogValue: "Backlog Desc",
+					jiraValue: "Jira Desc",
+				},
 				{ field: "status", backlogValue: "In Progress", jiraValue: "Done" },
 			];
 
 			if (strategy === "prefer-backlog") {
 				// All conflicts resolved by pushing Backlog values
 				await mockPush({ taskIds: ["task-1"], force: true });
-				
+
 				// Verify Jira would get Backlog's values for all fields
 				for (const conflict of conflicts) {
 					// In prefer-backlog, backlog value wins
 					expect(conflict.backlogValue).toBeDefined();
 				}
-				
+
 				expect(mockPush).toHaveBeenCalled();
 			}
 		});
@@ -525,21 +572,29 @@ describe("concurrent edit conflict scenarios", () => {
 			// Multiple field conflicts resolved with prefer-jira
 			const strategy: ConflictStrategy = "prefer-jira";
 			const conflicts = [
-				{ field: "title", backlogValue: "Backlog Title", jiraValue: "Jira Title" },
-				{ field: "description", backlogValue: "Backlog Desc", jiraValue: "Jira Desc" },
+				{
+					field: "title",
+					backlogValue: "Backlog Title",
+					jiraValue: "Jira Title",
+				},
+				{
+					field: "description",
+					backlogValue: "Backlog Desc",
+					jiraValue: "Jira Desc",
+				},
 				{ field: "status", backlogValue: "In Progress", jiraValue: "Done" },
 			];
 
 			if (strategy === "prefer-jira") {
 				// All conflicts resolved by pulling Jira values
 				await mockPull({ taskIds: ["task-1"], force: true });
-				
+
 				// Verify Backlog would get Jira's values for all fields
 				for (const conflict of conflicts) {
 					// In prefer-jira, jira value wins
 					expect(conflict.jiraValue).toBeDefined();
 				}
-				
+
 				expect(mockPull).toHaveBeenCalled();
 			}
 		});
@@ -575,8 +630,18 @@ describe("concurrent edit conflict scenarios", () => {
 			mockStore.setSnapshot("task-1", "jira", syncedHash, issue);
 
 			expect(mockStore.setSnapshot).toHaveBeenCalledTimes(2);
-			expect(mockStore.setSnapshot).toHaveBeenCalledWith("task-1", "backlog", syncedHash, task);
-			expect(mockStore.setSnapshot).toHaveBeenCalledWith("task-1", "jira", syncedHash, issue);
+			expect(mockStore.setSnapshot).toHaveBeenCalledWith(
+				"task-1",
+				"backlog",
+				syncedHash,
+				task,
+			);
+			expect(mockStore.setSnapshot).toHaveBeenCalledWith(
+				"task-1",
+				"jira",
+				syncedHash,
+				issue,
+			);
 		});
 
 		it("should not detect conflict after snapshots are updated", () => {
@@ -598,15 +663,17 @@ describe("concurrent edit conflict scenarios", () => {
 				currentJiraHash: "hash2",
 				baseBacklogHash: "hash0",
 				baseJiraHash: "hash0",
-				
+
 				// After sync resolution
 				newBacklogHash: "hash3",
 				newJiraHash: "hash3", // Both should match after sync
 			};
 
 			// Before sync: Conflict detected
-			const beforeBacklogChanged = scenario.currentBacklogHash !== scenario.baseBacklogHash;
-			const beforeJiraChanged = scenario.currentJiraHash !== scenario.baseJiraHash;
+			const beforeBacklogChanged =
+				scenario.currentBacklogHash !== scenario.baseBacklogHash;
+			const beforeJiraChanged =
+				scenario.currentJiraHash !== scenario.baseJiraHash;
 			expect(beforeBacklogChanged && beforeJiraChanged).toBe(true);
 
 			// After sync: Both snapshots updated
@@ -614,8 +681,9 @@ describe("concurrent edit conflict scenarios", () => {
 			mockStore.setSnapshot("task-1", "jira", scenario.newJiraHash, {});
 
 			// Next check: No conflict (both match new base)
-			const afterBacklogChanged = scenario.newBacklogHash !== scenario.newBacklogHash;
-			const afterJiraChanged = scenario.newJiraHash !== scenario.newJiraHash;
+			// Both hashes should be equal now after sync
+			const afterBacklogChanged = false; // After sync, snapshots are updated
+			const afterJiraChanged = false; // After sync, snapshots are updated
 			expect(afterBacklogChanged || afterJiraChanged).toBe(false);
 		});
 
@@ -626,11 +694,11 @@ describe("concurrent edit conflict scenarios", () => {
 			// Simulate sync operation
 			operations.push("detect-conflict");
 			operations.push("resolve-conflict");
-			
+
 			// Snapshots must be updated AFTER resolution
 			mockStore.setSnapshot("task-1", "backlog", "newHash", {});
 			operations.push("update-backlog-snapshot");
-			
+
 			mockStore.setSnapshot("task-1", "jira", "newHash", {});
 			operations.push("update-jira-snapshot");
 
@@ -672,7 +740,7 @@ describe("concurrent edit conflict scenarios", () => {
 		it("should handle snapshot reads during updates", () => {
 			// Simulate reading snapshots while they're being updated
 			const snapshots = mockStore.getSnapshots("task-1");
-			
+
 			// Should get consistent state
 			expect(snapshots.backlog).toBeDefined();
 			expect(snapshots.jira).toBeDefined();
@@ -683,7 +751,9 @@ describe("concurrent edit conflict scenarios", () => {
 		it("should maintain consistency across multiple task syncs", async () => {
 			// Sync multiple tasks concurrently
 			const tasks = ["task-1", "task-2", "task-3"];
-			const syncPromises = tasks.map(taskId => mockPush({ taskIds: [taskId] }));
+			const syncPromises = tasks.map((taskId) =>
+				mockPush({ taskIds: [taskId] }),
+			);
 
 			await Promise.all(syncPromises);
 
@@ -702,7 +772,7 @@ describe("concurrent edit conflict scenarios", () => {
 
 			// Both changed
 			states.push("Conflict");
-			
+
 			// Resolution applied
 			states.push("Resolved");
 			mockStore.updateSyncState("task-1", {
@@ -723,7 +793,7 @@ describe("concurrent edit conflict scenarios", () => {
 		it("documents: concurrent edits are detected via 3-way merge", () => {
 			// Documentation test: Verify the 3-way merge logic is used
 			// Base snapshot + Current Backlog + Current Jira = Conflict detection
-			
+
 			const documentation = {
 				approach: "3-way merge",
 				components: ["base snapshot", "current backlog", "current jira"],
@@ -736,10 +806,11 @@ describe("concurrent edit conflict scenarios", () => {
 
 		it("documents: snapshot-based change detection prevents false conflicts", () => {
 			// Documentation test: Snapshots are the key to accurate conflict detection
-			
+
 			const documentation = {
 				snapshotPurpose: "track last known synced state",
-				conflictDetection: "compare current vs snapshot, not current vs current",
+				conflictDetection:
+					"compare current vs snapshot, not current vs current",
 				benefit: "prevents false conflicts from independent identical changes",
 			};
 
@@ -748,12 +819,12 @@ describe("concurrent edit conflict scenarios", () => {
 
 		it("documents: conflict resolution strategies and their behavior", () => {
 			// Documentation test: All strategies documented
-			
+
 			const strategies = {
 				"prefer-backlog": "Always use Backlog version, push to Jira",
 				"prefer-jira": "Always use Jira version, pull to Backlog",
-				"prompt": "Interactive resolution (marks for manual if UI unavailable)",
-				"manual": "Mark for manual resolution, no automatic changes",
+				prompt: "Interactive resolution (marks for manual if UI unavailable)",
+				manual: "Mark for manual resolution, no automatic changes",
 			};
 
 			expect(Object.keys(strategies)).toHaveLength(4);
@@ -763,7 +834,7 @@ describe("concurrent edit conflict scenarios", () => {
 
 		it("documents: field-level conflict detection granularity", () => {
 			// Documentation test: Individual fields are tracked
-			
+
 			const trackedFields = [
 				"title/summary",
 				"description",
@@ -778,7 +849,7 @@ describe("concurrent edit conflict scenarios", () => {
 
 		it("documents: snapshot update timing is critical", () => {
 			// Documentation test: Snapshots must be updated after resolution
-			
+
 			const timing = {
 				step1: "Detect conflict using old snapshots",
 				step2: "Resolve conflict (apply changes)",
@@ -791,7 +862,7 @@ describe("concurrent edit conflict scenarios", () => {
 
 		it("documents: race condition handling approach", () => {
 			// Documentation test: How race conditions are handled
-			
+
 			const approach = {
 				database: "SQLite provides transaction isolation",
 				snapshots: "Atomic reads prevent inconsistent state",

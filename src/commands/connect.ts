@@ -40,10 +40,14 @@ export async function connectCommand(): Promise<void> {
 	}
 
 	if (allGood) {
-		logger.info("\n✓ Connection verification complete - all systems operational");
+		logger.info(
+			"\n✓ Connection verification complete - all systems operational",
+		);
 		process.exit(0);
 	} else {
-		logger.error("\n✗ Connection verification failed - please check your configuration");
+		logger.error(
+			"\n✗ Connection verification failed - please check your configuration",
+		);
 		process.exit(1);
 	}
 }

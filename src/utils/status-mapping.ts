@@ -154,7 +154,9 @@ export async function findTransitionForStatus(
 
 		if (projectKey && mapping.projectOverrides?.[projectKey]) {
 			acceptableJiraStatuses =
-				mapping.projectOverrides[projectKey].backlogToJira[targetBacklogStatus] ||
+				mapping.projectOverrides[projectKey].backlogToJira[
+					targetBacklogStatus
+				] ||
 				mapping.backlogToJira[targetBacklogStatus] ||
 				[];
 		} else {

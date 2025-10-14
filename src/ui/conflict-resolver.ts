@@ -1,4 +1,4 @@
-import { confirm, select, input } from "@inquirer/prompts";
+import { confirm, input, select } from "@inquirer/prompts";
 import chalk from "chalk";
 import type { Conflict, FieldConflict } from "../commands/sync.ts";
 
@@ -28,7 +28,9 @@ export async function promptForConflictResolution(
 
 	// Process each conflicting field
 	for (const fieldConflict of conflict.fields) {
-		console.log(chalk.bold.cyan(`\n━━━ ${fieldConflict.field.toUpperCase()} ━━━\n`));
+		console.log(
+			chalk.bold.cyan(`\n━━━ ${fieldConflict.field.toUpperCase()} ━━━\n`),
+		);
 
 		// Display values side by side
 		displayFieldComparison(fieldConflict);
@@ -127,9 +129,7 @@ function displayFieldComparison(fieldConflict: FieldConflict): void {
 
 	console.log(chalk.blue("Jira (current):"));
 	console.log(
-		chalk.blue(
-			`  ${truncate(formatValue(fieldConflict.jiraValue), maxWidth)}`,
-		),
+		chalk.blue(`  ${truncate(formatValue(fieldConflict.jiraValue), maxWidth)}`),
 	);
 	console.log();
 }
@@ -186,5 +186,5 @@ function truncate(text: string, maxWidth: number): string {
 	if (text.length <= maxWidth) {
 		return text;
 	}
-	return text.substring(0, maxWidth - 3) + "...";
+	return `${text.substring(0, maxWidth - 3)}...`;
 }

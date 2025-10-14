@@ -1,18 +1,22 @@
 import type { Command } from "commander";
 import { BacklogClient } from "../integrations/backlog.ts";
 import { SyncStore } from "../state/store.ts";
-import { PlainTextDisplayAdapter } from "../ui/display-adapter.ts";
+import { formatTaskWithJira } from "../ui/display-adapter.ts";
 import { logger } from "../utils/logger.ts";
 
 // Import core formatter from backlog.md
 // In the real implementation, this would need to be properly imported from core
 // For now, we'll use a placeholder that would be replaced with the actual import
-type CoreFormatter = (task: any, content: string, filePath?: string) => string;
+import type { Task } from "../integrations/backlog.ts";
+type CoreFormatter = (task: Task, content: string, filePath?: string) => string;
 
 /**
  * View a task with Jira metadata
  */
-async function viewTask(taskId: string, options: { plain?: boolean }): Promise<void> {
+async function viewTask(
+	taskId: string,
+	options: { plain?: boolean },
+): Promise<void> {
 	const store = new SyncStore();
 	const backlog = new BacklogClient();
 
@@ -20,7 +24,7 @@ async function viewTask(taskId: string, options: { plain?: boolean }): Promise<v
 		// Get task from backlog
 		const task = await backlog.getTask(taskId);
 		// Create content from task fields for formatting
-		const content = "# Task Content\n\n" + (task.description || "No description");
+		const content = `# Task Content\n\n${task.description || "No description"}`;
 
 		// Get Jira mapping if exists
 		const jiraKey = store.getMapping(taskId);
@@ -45,7 +49,7 @@ async function viewTask(taskId: string, options: { plain?: boolean }): Promise<v
 
 		if (options.plain) {
 			// Use adapter to add Jira metadata
-			const formatted = PlainTextDisplayAdapter.formatTaskWithJira(
+			const formatted = formatTaskWithJira(
 				task,
 				content,
 				undefined,

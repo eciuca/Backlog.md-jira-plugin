@@ -112,7 +112,9 @@ export function canAutoResolveConflict(
 	// For now, be conservative and require manual resolution
 	// This can be enhanced later with field-level merge logic
 
-	logger.debug("Auto-resolution not yet implemented, defaulting to manual resolution");
+	logger.debug(
+		"Auto-resolution not yet implemented, defaulting to manual resolution",
+	);
 
 	return { canResolve: false };
 }

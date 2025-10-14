@@ -1,38 +1,44 @@
-import { describe, expect, it, mock, beforeEach, afterEach } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
 import type { PushOptions } from "./push.ts";
 
 // Mock modules before importing
 const mockBacklogClient = {
-	getTask: mock(() => Promise.resolve({
-		id: "task-1",
-		title: "Test Task",
-		description: "Test description",
-		status: "To Do",
-		assignee: "alice",
-		priority: "high",
-		labels: ["backend"],
-	})),
+	getTask: mock(() =>
+		Promise.resolve({
+			id: "task-1",
+			title: "Test Task",
+			description: "Test description",
+			status: "To Do",
+			assignee: "alice",
+			priority: "high",
+			labels: ["backend"],
+		}),
+	),
 	listTasks: mock(() => Promise.resolve([])),
 };
 
 const mockJiraClient = {
-	getIssue: mock(() => Promise.resolve({
-		key: "PROJ-1",
-		id: "10001",
-		summary: "Test Task",
-		description: "Test description",
-		status: "To Do",
-		assignee: "alice",
-		priority: "high",
-		labels: ["backend"],
-	})),
-	createIssue: mock(() => Promise.resolve({
-		key: "PROJ-2",
-		id: "10002",
-		summary: "New Task",
-		description: "New description",
-		status: "To Do",
-	})),
+	getIssue: mock(() =>
+		Promise.resolve({
+			key: "PROJ-1",
+			id: "10001",
+			summary: "Test Task",
+			description: "Test description",
+			status: "To Do",
+			assignee: "alice",
+			priority: "high",
+			labels: ["backend"],
+		}),
+	),
+	createIssue: mock(() =>
+		Promise.resolve({
+			key: "PROJ-2",
+			id: "10002",
+			summary: "New Task",
+			description: "New description",
+			status: "To Do",
+		}),
+	),
 	updateIssue: mock(() => Promise.resolve()),
 	transitionIssue: mock(() => Promise.resolve()),
 };
@@ -124,12 +130,17 @@ describe("push command", () => {
 			expect(mapping).toBeNull();
 
 			// Create issue
-			const issue = await mockJiraClient.createIssue("PROJ", "Task", task.title, {
-				description: task.description,
-				assignee: task.assignee,
-				priority: task.priority,
-				labels: task.labels,
-			});
+			const issue = await mockJiraClient.createIssue(
+				"PROJ",
+				"Task",
+				task.title,
+				{
+					description: task.description,
+					assignee: task.assignee,
+					priority: task.priority,
+					labels: task.labels,
+				},
+			);
 
 			expect(mockJiraClient.createIssue).toHaveBeenCalledWith(
 				"PROJ",
@@ -140,7 +151,7 @@ describe("push command", () => {
 					assignee: "alice",
 					priority: "high",
 					labels: ["backend", "feature"],
-				}
+				},
 			);
 
 			expect(issue.key).toBe("PROJ-100");
@@ -211,7 +222,10 @@ describe("push command", () => {
 
 			await mockJiraClient.updateIssue("PROJ-1", updates);
 
-			expect(mockJiraClient.updateIssue).toHaveBeenCalledWith("PROJ-1", updates);
+			expect(mockJiraClient.updateIssue).toHaveBeenCalledWith(
+				"PROJ-1",
+				updates,
+			);
 		});
 
 		it("should only update changed fields", async () => {
@@ -267,8 +281,20 @@ describe("push command", () => {
 			const baseHash = "originalHash";
 
 			mockStore.getSnapshots.mockReturnValue({
-				backlog: { hash: baseHash, payload: "{}", taskId: "task-1", source: "backlog", createdAt: new Date().toISOString() },
-				jira: { hash: baseHash, payload: "{}", taskId: "task-1", source: "jira", createdAt: new Date().toISOString() },
+				backlog: {
+					hash: baseHash,
+					payload: "{}",
+					taskId: "task-1",
+					source: "backlog",
+					createdAt: new Date().toISOString(),
+				},
+				jira: {
+					hash: baseHash,
+					payload: "{}",
+					taskId: "task-1",
+					source: "jira",
+					createdAt: new Date().toISOString(),
+				},
 			});
 
 			// Mock classifySyncState to return conflict
@@ -280,7 +306,12 @@ describe("push command", () => {
 				baseJiraHash: baseHash,
 			});
 
-			const result = mockClassifySyncState(backlogHash, jiraHash, baseHash, baseHash);
+			const result = mockClassifySyncState(
+				backlogHash,
+				jiraHash,
+				baseHash,
+				baseHash,
+			);
 
 			expect(result.state).toBe("Conflict");
 		});
@@ -297,7 +328,9 @@ describe("push command", () => {
 			if (!force && syncState.state === "Conflict") {
 				// Should throw or skip
 				const shouldThrow = () => {
-					throw new Error("Conflict detected. Use --force to override or run 'backlog-jira sync' to resolve");
+					throw new Error(
+						"Conflict detected. Use --force to override or run 'backlog-jira sync' to resolve",
+					);
 				};
 
 				expect(shouldThrow).toThrow("Conflict detected");
@@ -336,10 +369,12 @@ describe("push command", () => {
 				all: true,
 			};
 
-			mockStore.getAllMappings.mockReturnValue(new Map([
-				["task-1", "PROJ-1"],
-				["task-2", "PROJ-2"],
-			]));
+			mockStore.getAllMappings.mockReturnValue(
+				new Map([
+					["task-1", "PROJ-1"],
+					["task-2", "PROJ-2"],
+				]),
+			);
 
 			const mappings = mockStore.getAllMappings();
 			const taskIds = Array.from(mappings.keys());
@@ -387,14 +422,26 @@ describe("push command", () => {
 			const taskHash = "taskHash123";
 			const issueHash = "issueHash123";
 
-			mockComputeHash.mockReturnValueOnce(taskHash).mockReturnValueOnce(issueHash);
+			mockComputeHash
+				.mockReturnValueOnce(taskHash)
+				.mockReturnValueOnce(issueHash);
 
 			// After successful push, snapshots should be updated
 			mockStore.setSnapshot("task-1", "backlog", taskHash, task);
 			mockStore.setSnapshot("task-1", "jira", issueHash, issue);
 
-			expect(mockStore.setSnapshot).toHaveBeenCalledWith("task-1", "backlog", taskHash, task);
-			expect(mockStore.setSnapshot).toHaveBeenCalledWith("task-1", "jira", issueHash, issue);
+			expect(mockStore.setSnapshot).toHaveBeenCalledWith(
+				"task-1",
+				"backlog",
+				taskHash,
+				task,
+			);
+			expect(mockStore.setSnapshot).toHaveBeenCalledWith(
+				"task-1",
+				"jira",
+				issueHash,
+				issue,
+			);
 		});
 
 		it("should update sync state after successful push", async () => {
@@ -425,7 +472,9 @@ describe("push command", () => {
 		});
 
 		it("should handle Jira API errors", async () => {
-			mockJiraClient.createIssue.mockRejectedValue(new Error("Project not found"));
+			mockJiraClient.createIssue.mockRejectedValue(
+				new Error("Project not found"),
+			);
 
 			try {
 				await mockJiraClient.createIssue("INVALID", "Task", "Test", {});
@@ -484,14 +533,20 @@ describe("push command", () => {
 				skipped: [],
 			};
 
-			mockStore.logOperation("push", null, null, "success", JSON.stringify(result));
+			mockStore.logOperation(
+				"push",
+				null,
+				null,
+				"success",
+				JSON.stringify(result),
+			);
 
 			expect(mockStore.logOperation).toHaveBeenCalledWith(
 				"push",
 				null,
 				null,
 				"success",
-				JSON.stringify(result)
+				JSON.stringify(result),
 			);
 		});
 	});

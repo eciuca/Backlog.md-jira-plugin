@@ -31,9 +31,12 @@ describe("JiraClient", () => {
 			};
 
 			const callMcpToolMock = mock(() => Promise.resolve(mockResult));
-			(client as unknown as { callMcpTool: unknown }).callMcpTool = callMcpToolMock;
+			(client as unknown as { callMcpTool: unknown }).callMcpTool =
+				callMcpToolMock;
 
-			const result = await client.searchIssues("project = PROJ", { maxResults: 10 });
+			const result = await client.searchIssues("project = PROJ", {
+				maxResults: 10,
+			});
 
 			expect(callMcpToolMock).toHaveBeenCalledWith("jira_search", {
 				jql: "project = PROJ",
@@ -69,7 +72,8 @@ describe("JiraClient", () => {
 			};
 
 			const callMcpToolMock = mock(() => Promise.resolve(mockResult));
-			(client as unknown as { callMcpTool: unknown }).callMcpTool = callMcpToolMock;
+			(client as unknown as { callMcpTool: unknown }).callMcpTool =
+				callMcpToolMock;
 
 			const issue = await client.getIssue("PROJ-1");
 
@@ -90,7 +94,8 @@ describe("JiraClient", () => {
 			const client = new JiraClient();
 
 			const callMcpToolMock = mock(() => Promise.resolve({}));
-			(client as unknown as { callMcpTool: unknown }).callMcpTool = callMcpToolMock;
+			(client as unknown as { callMcpTool: unknown }).callMcpTool =
+				callMcpToolMock;
 
 			await client.updateIssue("PROJ-1", {
 				summary: "New Summary",
@@ -139,7 +144,8 @@ describe("JiraClient", () => {
 			};
 
 			const callMcpToolMock = mock(() => Promise.resolve(mockResult));
-			(client as unknown as { callMcpTool: unknown }).callMcpTool = callMcpToolMock;
+			(client as unknown as { callMcpTool: unknown }).callMcpTool =
+				callMcpToolMock;
 
 			const transitions = await client.getTransitions("PROJ-1");
 
@@ -160,7 +166,8 @@ describe("JiraClient", () => {
 			const client = new JiraClient();
 
 			const callMcpToolMock = mock(() => Promise.resolve({}));
-			(client as unknown as { callMcpTool: unknown }).callMcpTool = callMcpToolMock;
+			(client as unknown as { callMcpTool: unknown }).callMcpTool =
+				callMcpToolMock;
 
 			await client.transitionIssue("PROJ-1", "21", {
 				comment: "Moving to In Progress",
@@ -192,7 +199,8 @@ describe("JiraClient", () => {
 			};
 
 			const callMcpToolMock = mock(() => Promise.resolve(mockResult));
-			(client as unknown as { callMcpTool: unknown }).callMcpTool = callMcpToolMock;
+			(client as unknown as { callMcpTool: unknown }).callMcpTool =
+				callMcpToolMock;
 
 			const issue = await client.createIssue("PROJ", "Task", "New Issue", {
 				description: "New description",

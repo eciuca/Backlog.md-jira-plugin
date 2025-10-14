@@ -13,7 +13,10 @@ import { watch } from "./commands/watch.ts";
 
 const program = new Command();
 
-program.name("backlog-jira").description("Bidirectional sync plugin between Backlog.md and Jira").version("0.1.0");
+program
+	.name("backlog-jira")
+	.description("Bidirectional sync plugin between Backlog.md and Jira")
+	.version("0.1.0");
 
 program
 	.command("init")
@@ -22,7 +25,10 @@ program
 		try {
 			await initCommand();
 		} catch (error) {
-			console.error("Error:", error instanceof Error ? error.message : String(error));
+			console.error(
+				"Error:",
+				error instanceof Error ? error.message : String(error),
+			);
 			process.exit(1);
 		}
 	});
@@ -34,7 +40,10 @@ program
 		try {
 			await connectCommand();
 		} catch (error) {
-			console.error("Error:", error instanceof Error ? error.message : String(error));
+			console.error(
+				"Error:",
+				error instanceof Error ? error.message : String(error),
+			);
 			process.exit(1);
 		}
 	});
@@ -46,7 +55,10 @@ program
 		try {
 			await doctorCommand();
 		} catch (error) {
-			console.error("Error:", error instanceof Error ? error.message : String(error));
+			console.error(
+				"Error:",
+				error instanceof Error ? error.message : String(error),
+			);
 			process.exit(1);
 		}
 	});
@@ -82,7 +94,10 @@ program
 				process.exit(1);
 			}
 		} catch (error) {
-			console.error("Error:", error instanceof Error ? error.message : String(error));
+			console.error(
+				"Error:",
+				error instanceof Error ? error.message : String(error),
+			);
 			process.exit(1);
 		}
 	});
@@ -113,7 +128,10 @@ program
 				process.exit(1);
 			}
 		} catch (error) {
-			console.error("Error:", error instanceof Error ? error.message : String(error));
+			console.error(
+				"Error:",
+				error instanceof Error ? error.message : String(error),
+			);
 			process.exit(1);
 		}
 	});
@@ -122,7 +140,10 @@ program
 	.command("sync [taskIds...]")
 	.description("Bidirectional sync with conflict resolution")
 	.option("--all", "Sync all mapped tasks")
-	.option("--strategy <strategy>", "Conflict resolution strategy: prefer-backlog|prefer-jira|prompt|manual")
+	.option(
+		"--strategy <strategy>",
+		"Conflict resolution strategy: prefer-backlog|prefer-jira|prompt|manual",
+	)
 	.option("--dry-run", "Show what would be synced without making changes")
 	.action(async (taskIds, options) => {
 		try {
@@ -151,7 +172,10 @@ program
 				process.exit(1);
 			}
 		} catch (error) {
-			console.error("Error:", error instanceof Error ? error.message : String(error));
+			console.error(
+				"Error:",
+				error instanceof Error ? error.message : String(error),
+			);
 			process.exit(1);
 		}
 	});
@@ -160,7 +184,11 @@ program
 	.command("watch")
 	.description("Watch for changes and auto-sync")
 	.option("--interval <interval>", "Polling interval (e.g., 60s, 5m)", "60s")
-	.option("--strategy <strategy>", "Conflict resolution strategy: prefer-backlog|prefer-jira|prompt|manual", "prefer-backlog")
+	.option(
+		"--strategy <strategy>",
+		"Conflict resolution strategy: prefer-backlog|prefer-jira|prompt|manual",
+		"prefer-backlog",
+	)
 	.option("--stop-on-error", "Stop watch mode if an error occurs")
 	.action(async (options) => {
 		try {
@@ -170,7 +198,10 @@ program
 				stopOnError: options.stopOnError,
 			});
 		} catch (error) {
-			console.error("Error:", error instanceof Error ? error.message : String(error));
+			console.error(
+				"Error:",
+				error instanceof Error ? error.message : String(error),
+			);
 			process.exit(1);
 		}
 	});

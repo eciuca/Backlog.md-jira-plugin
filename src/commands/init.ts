@@ -25,7 +25,9 @@ export async function initCommand(): Promise<void> {
 
 	// Check if already initialized
 	if (existsSync(configDir)) {
-		logger.warn(".backlog-jira/ already exists. Use 'backlog-jira config' to modify settings.");
+		logger.warn(
+			".backlog-jira/ already exists. Use 'backlog-jira config' to modify settings.",
+		);
 		return;
 	}
 
@@ -77,7 +79,9 @@ export async function initCommand(): Promise<void> {
 	logger.info(`  - Logs: ${join(configDir, "logs/")}`);
 	logger.info("");
 	logger.info("Next steps:");
-	logger.info("  1. Edit .backlog-jira/config.json with your Jira project settings");
+	logger.info(
+		"  1. Edit .backlog-jira/config.json with your Jira project settings",
+	);
 	logger.info("  2. Run 'backlog-jira connect' to verify connections");
 	logger.info("  3. Run 'backlog-jira doctor' to check environment setup");
 }

@@ -73,7 +73,10 @@ function serializeFrontmatter(frontmatter: Record<string, unknown>): string {
 /**
  * Add or update Jira metadata in a task file's frontmatter
  */
-export function updateJiraMetadata(filePath: string, metadata: JiraMetadata): void {
+export function updateJiraMetadata(
+	filePath: string,
+	metadata: JiraMetadata,
+): void {
 	try {
 		const content = readFileSync(filePath, "utf-8");
 		const { frontmatter, body } = parseFrontmatter(content);
@@ -97,7 +100,10 @@ export function updateJiraMetadata(filePath: string, metadata: JiraMetadata): vo
 		const newContent = `---\n${newFrontmatter}\n---\n${body}`;
 
 		writeFileSync(filePath, newContent, "utf-8");
-		logger.debug({ filePath, metadata }, "Updated Jira metadata in frontmatter");
+		logger.debug(
+			{ filePath, metadata },
+			"Updated Jira metadata in frontmatter",
+		);
 	} catch (error) {
 		logger.error({ error, filePath }, "Failed to update Jira metadata");
 		throw error;
@@ -139,7 +145,9 @@ export function getTaskFilePath(taskId: string): string {
 	const files = readdirSync(tasksDir);
 
 	const prefix = `${taskId} - `;
-	const file = files.find((f: string) => f.startsWith(prefix) && f.endsWith(".md"));
+	const file = files.find(
+		(f: string) => f.startsWith(prefix) && f.endsWith(".md"),
+	);
 
 	if (!file) {
 		throw new Error(`Task file not found for ${taskId}`);

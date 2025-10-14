@@ -10,7 +10,9 @@ task-2 - Second Task (In Progress) [@bob]
 task-3 - Third Task (Done)`;
 
 			// Access private method through type assertion for testing
-			const tasks = (client as unknown as { parseTaskList: (output: string) => unknown[] }).parseTaskList(mockOutput);
+			const tasks = (
+				client as unknown as { parseTaskList: (output: string) => unknown[] }
+			).parseTaskList(mockOutput);
 
 			expect(tasks).toHaveLength(3);
 			expect(tasks[0]).toMatchObject({
@@ -25,7 +27,9 @@ task-3 - Third Task (Done)`;
 
 		it("should handle empty output", async () => {
 			const client = new BacklogClient();
-			const tasks = (client as unknown as { parseTaskList: (output: string) => unknown[] }).parseTaskList("");
+			const tasks = (
+				client as unknown as { parseTaskList: (output: string) => unknown[] }
+			).parseTaskList("");
 			expect(tasks).toHaveLength(0);
 		});
 	});
@@ -58,7 +62,9 @@ Implementation Plan:
 1. Step one
 2. Step two`;
 
-			const task = (client as unknown as { parseTaskDetail: (output: string) => unknown }).parseTaskDetail(mockOutput);
+			const task = (
+				client as unknown as { parseTaskDetail: (output: string) => unknown }
+			).parseTaskDetail(mockOutput);
 
 			// The parser extracts all sections from the output
 			expect(task).toMatchObject({
@@ -87,7 +93,11 @@ Acceptance Criteria:
 - [x] #2 Second criterion`;
 
 			const task = (
-				client as unknown as { parseTaskDetail: (output: string) => { acceptanceCriteria: unknown[] } }
+				client as unknown as {
+					parseTaskDetail: (output: string) => {
+						acceptanceCriteria: unknown[];
+					};
+				}
 			).parseTaskDetail(mockOutput);
 
 			expect(task.acceptanceCriteria).toHaveLength(2);

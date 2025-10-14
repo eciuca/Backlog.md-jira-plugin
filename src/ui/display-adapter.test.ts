@@ -1,6 +1,10 @@
 import { describe, expect, it } from "bun:test";
-import { PlainTextDisplayAdapter, BlessedDisplayAdapter, type TaskWithJira } from "./display-adapter.ts";
 import type { Task } from "../../../src/types/index.ts";
+import {
+	type TaskWithJira,
+	formatTaskWithJira,
+	generateDetailContentWithJira,
+} from "./display-adapter.ts";
 
 describe("PlainTextDisplayAdapter", () => {
 	it("should add Jira metadata section to plain text output", () => {
@@ -27,13 +31,15 @@ describe("PlainTextDisplayAdapter", () => {
 			return `Task ${t.id} - ${t.title}\nCore output`;
 		};
 
-		const result = PlainTextDisplayAdapter.formatTaskWithJira(task, content, undefined, coreFormatter);
+		const result = formatTaskWithJira(task, content, undefined, coreFormatter);
 
 		expect(result).toContain("Task task-1 - Test Task");
 		expect(result).toContain("Core output");
 		expect(result).toContain("Jira Integration:");
 		expect(result).toContain("Jira Key: PROJ-123");
-		expect(result).toContain("Jira URL: https://jira.example.com/browse/PROJ-123");
+		expect(result).toContain(
+			"Jira URL: https://jira.example.com/browse/PROJ-123",
+		);
 		expect(result).toContain("Last Sync: 2025-01-02T10:00:00Z");
 		expect(result).toContain("Sync State: ✅ InSync");
 	});
@@ -54,7 +60,7 @@ describe("PlainTextDisplayAdapter", () => {
 			return `Task ${t.id} - ${t.title}\nCore output`;
 		};
 
-		const result = PlainTextDisplayAdapter.formatTaskWithJira(task, content, undefined, coreFormatter);
+		const result = formatTaskWithJira(task, content, undefined, coreFormatter);
 
 		expect(result).toBe("Task task-1 - Test Task\nCore output");
 		expect(result).not.toContain("Jira Integration:");
@@ -70,12 +76,12 @@ describe("PlainTextDisplayAdapter", () => {
 			dependencies: [],
 			rawContent: "",
 			jiraKey: "PROJ-1",
-			jiraSyncState: state as any,
+			jiraSyncState: state as string,
 		});
 
 		const coreFormatter = (_t: Task, _c: string, _f?: string) => "Core";
 
-		const inSyncResult = PlainTextDisplayAdapter.formatTaskWithJira(
+		const inSyncResult = formatTaskWithJira(
 			createTaskWithState("InSync"),
 			"",
 			undefined,
@@ -83,7 +89,7 @@ describe("PlainTextDisplayAdapter", () => {
 		);
 		expect(inSyncResult).toContain("✅ InSync");
 
-		const needsPushResult = PlainTextDisplayAdapter.formatTaskWithJira(
+		const needsPushResult = formatTaskWithJira(
 			createTaskWithState("NeedsPush"),
 			"",
 			undefined,
@@ -91,7 +97,7 @@ describe("PlainTextDisplayAdapter", () => {
 		);
 		expect(needsPushResult).toContain("⬆️ NeedsPush");
 
-		const needsPullResult = PlainTextDisplayAdapter.formatTaskWithJira(
+		const needsPullResult = formatTaskWithJira(
 			createTaskWithState("NeedsPull"),
 			"",
 			undefined,
@@ -99,7 +105,7 @@ describe("PlainTextDisplayAdapter", () => {
 		);
 		expect(needsPullResult).toContain("⬇️ NeedsPull");
 
-		const conflictResult = PlainTextDisplayAdapter.formatTaskWithJira(
+		const conflictResult = formatTaskWithJira(
 			createTaskWithState("Conflict"),
 			"",
 			undefined,
@@ -107,7 +113,7 @@ describe("PlainTextDisplayAdapter", () => {
 		);
 		expect(conflictResult).toContain("⚠️ Conflict");
 
-		const unknownResult = PlainTextDisplayAdapter.formatTaskWithJira(
+		const unknownResult = formatTaskWithJira(
 			createTaskWithState("Unknown"),
 			"",
 			undefined,
@@ -144,13 +150,19 @@ describe("BlessedDisplayAdapter", () => {
 			],
 		});
 
-		const result = BlessedDisplayAdapter.generateDetailContentWithJira(task, "", coreGenerator);
+		const result = generateDetailContentWithJira(task, "", coreGenerator);
 
 		expect(result.headerContent).toEqual(["Header"]);
 		expect(result.bodyContent).toContain("{bold}{cyan-fg}Jira Integration{/}");
-		expect(result.bodyContent.some((line) => line.includes("Jira Key"))).toBe(true);
-		expect(result.bodyContent.some((line) => line.includes("PROJ-123"))).toBe(true);
-		expect(result.bodyContent.some((line) => line.includes("Sync State"))).toBe(true);
+		expect(result.bodyContent.some((line) => line.includes("Jira Key"))).toBe(
+			true,
+		);
+		expect(result.bodyContent.some((line) => line.includes("PROJ-123"))).toBe(
+			true,
+		);
+		expect(result.bodyContent.some((line) => line.includes("Sync State"))).toBe(
+			true,
+		);
 	});
 
 	it("should not modify content if no Jira metadata", () => {
@@ -176,11 +188,13 @@ describe("BlessedDisplayAdapter", () => {
 		});
 
 		const originalContent = coreGenerator(task, "");
-		const result = BlessedDisplayAdapter.generateDetailContentWithJira(task, "", coreGenerator);
+		const result = generateDetailContentWithJira(task, "", coreGenerator);
 
 		expect(result.headerContent).toEqual(originalContent.headerContent);
 		expect(result.bodyContent).toEqual(originalContent.bodyContent);
-		expect(result.bodyContent.some((line) => line.includes("Jira Integration"))).toBe(false);
+		expect(
+			result.bodyContent.some((line) => line.includes("Jira Integration")),
+		).toBe(false);
 	});
 
 	it("should insert Jira metadata after Details section", () => {
@@ -207,11 +221,15 @@ describe("BlessedDisplayAdapter", () => {
 			],
 		});
 
-		const result = BlessedDisplayAdapter.generateDetailContentWithJira(task, "", coreGenerator);
+		const result = generateDetailContentWithJira(task, "", coreGenerator);
 
 		// Find the Jira Integration section
-		const jiraIndex = result.bodyContent.findIndex((line) => line.includes("Jira Integration"));
-		const descriptionIndex = result.bodyContent.findIndex((line) => line.includes("Description"));
+		const jiraIndex = result.bodyContent.findIndex((line) =>
+			line.includes("Jira Integration"),
+		);
+		const descriptionIndex = result.bodyContent.findIndex((line) =>
+			line.includes("Description"),
+		);
 
 		// Jira section should come after Details but before Description
 		expect(jiraIndex).toBeGreaterThan(0);
@@ -228,7 +246,7 @@ describe("BlessedDisplayAdapter", () => {
 			dependencies: [],
 			rawContent: "",
 			jiraKey: "PROJ-1",
-			jiraSyncState: state as any,
+			jiraSyncState: state as string,
 		});
 
 		const coreGenerator = (_t: Task, _r: string) => ({
@@ -236,32 +254,40 @@ describe("BlessedDisplayAdapter", () => {
 			bodyContent: ["{bold}{cyan-fg}Details{/}"],
 		});
 
-		const inSyncResult = BlessedDisplayAdapter.generateDetailContentWithJira(
+		const inSyncResult = generateDetailContentWithJira(
 			createTaskWithState("InSync"),
 			"",
 			coreGenerator,
 		);
-		expect(inSyncResult.bodyContent.some((line) => line.includes("{green-fg}"))).toBe(true);
+		expect(
+			inSyncResult.bodyContent.some((line) => line.includes("{green-fg}")),
+		).toBe(true);
 
-		const needsPushResult = BlessedDisplayAdapter.generateDetailContentWithJira(
+		const needsPushResult = generateDetailContentWithJira(
 			createTaskWithState("NeedsPush"),
 			"",
 			coreGenerator,
 		);
-		expect(needsPushResult.bodyContent.some((line) => line.includes("{yellow-fg}"))).toBe(true);
+		expect(
+			needsPushResult.bodyContent.some((line) => line.includes("{yellow-fg}")),
+		).toBe(true);
 
-		const needsPullResult = BlessedDisplayAdapter.generateDetailContentWithJira(
+		const needsPullResult = generateDetailContentWithJira(
 			createTaskWithState("NeedsPull"),
 			"",
 			coreGenerator,
 		);
-		expect(needsPullResult.bodyContent.some((line) => line.includes("{cyan-fg}"))).toBe(true);
+		expect(
+			needsPullResult.bodyContent.some((line) => line.includes("{cyan-fg}")),
+		).toBe(true);
 
-		const conflictResult = BlessedDisplayAdapter.generateDetailContentWithJira(
+		const conflictResult = generateDetailContentWithJira(
 			createTaskWithState("Conflict"),
 			"",
 			coreGenerator,
 		);
-		expect(conflictResult.bodyContent.some((line) => line.includes("{red-fg}"))).toBe(true);
+		expect(
+			conflictResult.bodyContent.some((line) => line.includes("{red-fg}")),
+		).toBe(true);
 	});
 });

@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { BacklogClient, type BacklogTask } from "../integrations/backlog.ts";
 import { JiraClient, type JiraIssue } from "../integrations/jira.ts";
 import { SyncStore } from "../state/store.ts";
+import { getTaskFilePath, updateJiraMetadata } from "../utils/frontmatter.ts";
 import { logger } from "../utils/logger.ts";
 import {
 	computeHash,
@@ -11,9 +12,8 @@ import {
 	normalizeJiraIssue,
 	stripAcceptanceCriteriaFromDescription,
 } from "../utils/normalizer.ts";
-import { classifySyncState } from "../utils/sync-state.ts";
 import { findTransitionForStatus } from "../utils/status-mapping.ts";
-import { getTaskFilePath, updateJiraMetadata } from "../utils/frontmatter.ts";
+import { classifySyncState } from "../utils/sync-state.ts";
 
 export interface PushOptions {
 	taskIds?: string[];
@@ -83,7 +83,8 @@ export async function push(options: PushOptions = {}): Promise<PushResult> {
 					result.pushed.push(taskId);
 					logger.info({ taskId }, "Successfully pushed task");
 				} catch (error) {
-					const errorMsg = error instanceof Error ? error.message : String(error);
+					const errorMsg =
+						error instanceof Error ? error.message : String(error);
 					result.failed.push({ taskId, error: errorMsg });
 					logger.error({ taskId, error: errorMsg }, "Failed to push task");
 					result.success = false;
@@ -173,7 +174,8 @@ async function pushTask(
 		dryRun: boolean;
 	},
 ): Promise<void> {
-	const { store, backlog, jira, projectKey, issueType, force, dryRun } = context;
+	const { store, backlog, jira, projectKey, issueType, force, dryRun } =
+		context;
 
 	// Get current task
 	const task = await backlog.getTask(taskId);
@@ -228,7 +230,12 @@ async function pushTask(
 			// Update snapshots with re-fetched data
 			const updatedIssue = await jira.getIssue(mapping.jiraKey);
 			const syncedHash = computeHash(normalizeBacklogTask(task));
-			store.setSnapshot(taskId, "backlog", syncedHash, normalizeBacklogTask(task));
+			store.setSnapshot(
+				taskId,
+				"backlog",
+				syncedHash,
+				normalizeBacklogTask(task),
+			);
 			store.setSnapshot(
 				taskId,
 				"jira",
@@ -275,7 +282,10 @@ async function pushTask(
 		} else {
 			// Merge description with AC for new issue creation
 			const descriptionWithAc = task.acceptanceCriteria
-				? mergeDescriptionWithAc(task.description || "", task.acceptanceCriteria)
+				? mergeDescriptionWithAc(
+						task.description || "",
+						task.acceptanceCriteria,
+					)
 				: task.description;
 
 			const issue = await jira.createIssue(projectKey, issueType, task.title, {

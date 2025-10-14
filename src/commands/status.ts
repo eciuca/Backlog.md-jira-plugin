@@ -3,7 +3,12 @@ import { BacklogClient } from "../integrations/backlog.ts";
 import { JiraClient } from "../integrations/jira.ts";
 import { SyncStore } from "../state/store.ts";
 import { logger } from "../utils/logger.ts";
-import { comparePayloads, computeHash, normalizeBacklogTask, normalizeJiraIssue } from "../utils/normalizer.ts";
+import {
+	comparePayloads,
+	computeHash,
+	normalizeBacklogTask,
+	normalizeJiraIssue,
+} from "../utils/normalizer.ts";
 import type { NormalizedPayload } from "../utils/normalizer.ts";
 import { type SyncState, classifySyncState } from "../utils/sync-state.ts";
 
@@ -20,7 +25,10 @@ interface TaskStatus {
 /**
  * Get sync status for all mapped tasks
  */
-async function getStatus(options: { json?: boolean; grep?: string }): Promise<void> {
+async function getStatus(options: {
+	json?: boolean;
+	grep?: string;
+}): Promise<void> {
 	const store = new SyncStore();
 	const backlog = new BacklogClient();
 	const jira = new JiraClient();
@@ -34,7 +42,9 @@ async function getStatus(options: { json?: boolean; grep?: string }): Promise<vo
 			return;
 		}
 
-		console.log(`📊 Checking sync status for ${mappings.size} mapped tasks...\n`);
+		console.log(
+			`📊 Checking sync status for ${mappings.size} mapped tasks...\n`,
+		);
 
 		const statuses: TaskStatus[] = [];
 
@@ -55,13 +65,26 @@ async function getStatus(options: { json?: boolean; grep?: string }): Promise<vo
 				const snapshots = store.getSnapshots(taskId);
 
 				// Classify sync state
-				const stateResult = classifySyncState(currentBacklogHash, currentJiraHash, snapshots.backlog, snapshots.jira);
+				const stateResult = classifySyncState(
+					currentBacklogHash,
+					currentJiraHash,
+					snapshots.backlog,
+					snapshots.jira,
+				);
 
 				// Calculate changed fields if there are changes
 				let changedFields: string[] | undefined;
-				if (stateResult.state !== "InSync" && snapshots.backlog && snapshots.jira) {
-					const baseBacklogPayload = JSON.parse(snapshots.backlog.payload) as NormalizedPayload;
-					const baseJiraPayload = JSON.parse(snapshots.jira.payload) as NormalizedPayload;
+				if (
+					stateResult.state !== "InSync" &&
+					snapshots.backlog &&
+					snapshots.jira
+				) {
+					const baseBacklogPayload = JSON.parse(
+						snapshots.backlog.payload,
+					) as NormalizedPayload;
+					const baseJiraPayload = JSON.parse(
+						snapshots.jira.payload,
+					) as NormalizedPayload;
 
 					// Determine which payload changed
 					if (stateResult.state === "NeedsPush") {
@@ -70,7 +93,10 @@ async function getStatus(options: { json?: boolean; grep?: string }): Promise<vo
 						changedFields = comparePayloads(baseJiraPayload, jiraPayload);
 					} else if (stateResult.state === "Conflict") {
 						// Show both sides' changes
-						const backlogChanges = comparePayloads(baseBacklogPayload, backlogPayload);
+						const backlogChanges = comparePayloads(
+							baseBacklogPayload,
+							backlogPayload,
+						);
 						const jiraChanges = comparePayloads(baseJiraPayload, jiraPayload);
 						changedFields = [...new Set([...backlogChanges, ...jiraChanges])];
 					}
@@ -103,7 +129,9 @@ async function getStatus(options: { json?: boolean; grep?: string }): Promise<vo
 		if (options.grep) {
 			const grepLower = options.grep.toLowerCase();
 			filteredStatuses = statuses.filter(
-				(s) => s.syncState.toLowerCase().includes(grepLower) || s.taskId.toLowerCase().includes(grepLower),
+				(s) =>
+					s.syncState.toLowerCase().includes(grepLower) ||
+					s.taskId.toLowerCase().includes(grepLower),
 			);
 		}
 
@@ -146,21 +174,33 @@ async function getStatus(options: { json?: boolean; grep?: string }): Promise<vo
  */
 function displayStatusTable(statuses: TaskStatus[]): void {
 	// Header
-	console.log("╔═══════════════╦════════════╦═══════════════╦════════════════════════════════╗");
-	console.log("║ Task ID       ║ Jira Key   ║ Sync State    ║ Changed Fields                 ║");
-	console.log("╠═══════════════╬════════════╬═══════════════╬════════════════════════════════╣");
+	console.log(
+		"╔═══════════════╦════════════╦═══════════════╦════════════════════════════════╗",
+	);
+	console.log(
+		"║ Task ID       ║ Jira Key   ║ Sync State    ║ Changed Fields                 ║",
+	);
+	console.log(
+		"╠═══════════════╬════════════╬═══════════════╬════════════════════════════════╣",
+	);
 
 	// Rows
 	for (const status of statuses) {
 		const stateIcon = getStateIcon(status.syncState);
 		const stateStr = `${stateIcon} ${status.syncState}`.padEnd(13);
-		const fieldsStr = (status.changedFields?.join(", ") || "").slice(0, 30).padEnd(30);
+		const fieldsStr = (status.changedFields?.join(", ") || "")
+			.slice(0, 30)
+			.padEnd(30);
 
-		console.log(`║ ${status.taskId.padEnd(13)} ║ ${status.jiraKey.padEnd(10)} ║ ${stateStr} ║ ${fieldsStr} ║`);
+		console.log(
+			`║ ${status.taskId.padEnd(13)} ║ ${status.jiraKey.padEnd(10)} ║ ${stateStr} ║ ${fieldsStr} ║`,
+		);
 	}
 
 	// Footer
-	console.log("╚═══════════════╩════════════╩═══════════════╩════════════════════════════════╝");
+	console.log(
+		"╚═══════════════╩════════════╩═══════════════╩════════════════════════════════╝",
+	);
 }
 
 /**

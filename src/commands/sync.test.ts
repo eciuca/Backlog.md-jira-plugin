@@ -1,30 +1,34 @@
-import { describe, expect, it, mock, beforeEach, afterEach } from "bun:test";
-import type { SyncOptions, ConflictStrategy } from "./sync.ts";
+import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
+import type { ConflictStrategy, SyncOptions } from "./sync.ts";
 
 // Mock modules
 const mockBacklogClient = {
-	getTask: mock(() => Promise.resolve({
-		id: "task-1",
-		title: "Test Task",
-		description: "Test description",
-		status: "To Do",
-		assignee: "alice",
-		priority: "high",
-		labels: ["backend"],
-	})),
+	getTask: mock(() =>
+		Promise.resolve({
+			id: "task-1",
+			title: "Test Task",
+			description: "Test description",
+			status: "To Do",
+			assignee: "alice",
+			priority: "high",
+			labels: ["backend"],
+		}),
+	),
 	updateTask: mock(() => Promise.resolve()),
 };
 
 const mockJiraClient = {
-	getIssue: mock(() => Promise.resolve({
-		key: "PROJ-1",
-		summary: "Test Task",
-		description: "Test description",
-		status: "To Do",
-		assignee: "alice",
-		priority: "high",
-		labels: ["backend"],
-	})),
+	getIssue: mock(() =>
+		Promise.resolve({
+			key: "PROJ-1",
+			summary: "Test Task",
+			description: "Test description",
+			status: "To Do",
+			assignee: "alice",
+			priority: "high",
+			labels: ["backend"],
+		}),
+	),
 	updateIssue: mock(() => Promise.resolve()),
 };
 
@@ -32,8 +36,20 @@ const mockStore = {
 	getMapping: mock(() => ({ taskId: "task-1", jiraKey: "PROJ-1" })),
 	getAllMappings: mock(() => new Map([["task-1", "PROJ-1"]])),
 	getSnapshots: mock(() => ({
-		backlog: { hash: "baseHash", payload: "{}", taskId: "task-1", source: "backlog", createdAt: new Date().toISOString() },
-		jira: { hash: "baseHash", payload: "{}", taskId: "task-1", source: "jira", createdAt: new Date().toISOString() },
+		backlog: {
+			hash: "baseHash",
+			payload: "{}",
+			taskId: "task-1",
+			source: "backlog",
+			createdAt: new Date().toISOString(),
+		},
+		jira: {
+			hash: "baseHash",
+			payload: "{}",
+			taskId: "task-1",
+			source: "jira",
+			createdAt: new Date().toISOString(),
+		},
 	})),
 	setSnapshot: mock(() => {}),
 	updateSyncState: mock(() => {}),
@@ -41,8 +57,22 @@ const mockStore = {
 	close: mock(() => {}),
 };
 
-const mockPush = mock(() => Promise.resolve({ success: true, pushed: ["task-1"], failed: [], skipped: [] }));
-const mockPull = mock(() => Promise.resolve({ success: true, pulled: ["task-1"], failed: [], skipped: [] }));
+const mockPush = mock(() =>
+	Promise.resolve({
+		success: true,
+		pushed: ["task-1"],
+		failed: [],
+		skipped: [],
+	}),
+);
+const mockPull = mock(() =>
+	Promise.resolve({
+		success: true,
+		pulled: ["task-1"],
+		failed: [],
+		skipped: [],
+	}),
+);
 
 describe("sync command", () => {
 	beforeEach(() => {
@@ -150,7 +180,10 @@ describe("sync command", () => {
 				if (strategy === "prefer-backlog") {
 					await mockPush({ taskIds: ["task-1"], force: true });
 
-					expect(mockPush).toHaveBeenCalledWith({ taskIds: ["task-1"], force: true });
+					expect(mockPush).toHaveBeenCalledWith({
+						taskIds: ["task-1"],
+						force: true,
+					});
 					expect(mockPull).not.toHaveBeenCalled();
 				}
 			}
@@ -168,7 +201,10 @@ describe("sync command", () => {
 				if (strategy === "prefer-jira") {
 					await mockPull({ taskIds: ["task-1"], force: true });
 
-					expect(mockPull).toHaveBeenCalledWith({ taskIds: ["task-1"], force: true });
+					expect(mockPull).toHaveBeenCalledWith({
+						taskIds: ["task-1"],
+						force: true,
+					});
 					expect(mockPush).not.toHaveBeenCalled();
 				}
 			}
@@ -223,8 +259,9 @@ describe("sync command", () => {
 			const baseJira = { summary: "Original Title" };
 
 			// Both changed from different bases
-			const titleConflict = backlogTask.title !== baseBacklog.title && 
-								 jiraIssue.summary !== baseJira.summary;
+			const titleConflict =
+				backlogTask.title !== baseBacklog.title &&
+				jiraIssue.summary !== baseJira.summary;
 
 			expect(titleConflict).toBe(true);
 		});
@@ -235,8 +272,9 @@ describe("sync command", () => {
 			const baseBacklog = { description: "Original" };
 			const baseJira = { description: "Original" };
 
-			const descConflict = backlogTask.description !== baseBacklog.description && 
-								jiraIssue.description !== baseJira.description;
+			const descConflict =
+				backlogTask.description !== baseBacklog.description &&
+				jiraIssue.description !== baseJira.description;
 
 			expect(descConflict).toBe(true);
 		});
@@ -247,8 +285,9 @@ describe("sync command", () => {
 			const baseBacklog = { status: "To Do" };
 			const baseJira = { status: "To Do" };
 
-			const statusConflict = backlogTask.status !== baseBacklog.status && 
-								  jiraIssue.status !== baseJira.status;
+			const statusConflict =
+				backlogTask.status !== baseBacklog.status &&
+				jiraIssue.status !== baseJira.status;
 
 			expect(statusConflict).toBe(true);
 		});
@@ -259,8 +298,9 @@ describe("sync command", () => {
 			const baseBacklog = { assignee: "charlie" };
 			const baseJira = { assignee: "charlie" };
 
-			const assigneeConflict = backlogTask.assignee !== baseBacklog.assignee && 
-									jiraIssue.assignee !== baseJira.assignee;
+			const assigneeConflict =
+				backlogTask.assignee !== baseBacklog.assignee &&
+				jiraIssue.assignee !== baseJira.assignee;
 
 			expect(assigneeConflict).toBe(true);
 		});
@@ -271,8 +311,9 @@ describe("sync command", () => {
 			const baseBacklog = { priority: "medium" };
 			const baseJira = { priority: "medium" };
 
-			const priorityConflict = backlogTask.priority !== baseBacklog.priority && 
-									jiraIssue.priority !== baseJira.priority;
+			const priorityConflict =
+				backlogTask.priority !== baseBacklog.priority &&
+				jiraIssue.priority !== baseJira.priority;
 
 			expect(priorityConflict).toBe(true);
 		});
@@ -283,8 +324,10 @@ describe("sync command", () => {
 			const baseBacklog = { labels: ["backend"] };
 			const baseJira = { labels: ["backend"] };
 
-			const labelsConflict = JSON.stringify(backlogTask.labels) !== JSON.stringify(baseBacklog.labels) && 
-								  JSON.stringify(jiraIssue.labels) !== JSON.stringify(baseJira.labels);
+			const labelsConflict =
+				JSON.stringify(backlogTask.labels) !==
+					JSON.stringify(baseBacklog.labels) &&
+				JSON.stringify(jiraIssue.labels) !== JSON.stringify(baseJira.labels);
 
 			expect(labelsConflict).toBe(true);
 		});
@@ -305,10 +348,12 @@ describe("sync command", () => {
 				all: true,
 			};
 
-			mockStore.getAllMappings.mockReturnValue(new Map([
-				["task-1", "PROJ-1"],
-				["task-2", "PROJ-2"],
-			]));
+			mockStore.getAllMappings.mockReturnValue(
+				new Map([
+					["task-1", "PROJ-1"],
+					["task-2", "PROJ-2"],
+				]),
+			);
 
 			const mappings = mockStore.getAllMappings();
 			const taskIds = Array.from(mappings.keys());
@@ -332,7 +377,8 @@ describe("sync command", () => {
 				},
 			};
 
-			const strategy = (config.sync?.conflictStrategy as ConflictStrategy) || "prompt";
+			const strategy =
+				(config.sync?.conflictStrategy as ConflictStrategy) || "prompt";
 
 			expect(strategy).toBe("prefer-jira");
 		});
@@ -400,14 +446,20 @@ describe("sync command", () => {
 				skipped: [],
 			};
 
-			mockStore.logOperation("sync", null, null, "success", JSON.stringify(result));
+			mockStore.logOperation(
+				"sync",
+				null,
+				null,
+				"success",
+				JSON.stringify(result),
+			);
 
 			expect(mockStore.logOperation).toHaveBeenCalledWith(
 				"sync",
 				null,
 				null,
 				"success",
-				JSON.stringify(result)
+				JSON.stringify(result),
 			);
 		});
 	});
@@ -449,8 +501,18 @@ describe("sync command", () => {
 			mockStore.setSnapshot("task-1", "jira", syncedHash, issue);
 
 			expect(mockStore.setSnapshot).toHaveBeenCalledTimes(2);
-			expect(mockStore.setSnapshot).toHaveBeenCalledWith("task-1", "backlog", syncedHash, task);
-			expect(mockStore.setSnapshot).toHaveBeenCalledWith("task-1", "jira", syncedHash, issue);
+			expect(mockStore.setSnapshot).toHaveBeenCalledWith(
+				"task-1",
+				"backlog",
+				syncedHash,
+				task,
+			);
+			expect(mockStore.setSnapshot).toHaveBeenCalledWith(
+				"task-1",
+				"jira",
+				syncedHash,
+				issue,
+			);
 		});
 
 		it("should update sync state after successful sync", () => {

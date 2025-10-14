@@ -59,7 +59,12 @@ describe("sync-state", () => {
 				createdAt: new Date().toISOString(),
 			};
 
-			const result = classifySyncState(baseHash, baseHash, backlogSnapshot, jiraSnapshot);
+			const result = classifySyncState(
+				baseHash,
+				baseHash,
+				backlogSnapshot,
+				jiraSnapshot,
+			);
 
 			expect(result.state).toBe("InSync");
 			expect(result.backlogHash).toBe(baseHash);
@@ -88,7 +93,12 @@ describe("sync-state", () => {
 				createdAt: new Date().toISOString(),
 			};
 
-			const result = classifySyncState(newBacklogHash, baseHash, backlogSnapshot, jiraSnapshot);
+			const result = classifySyncState(
+				newBacklogHash,
+				baseHash,
+				backlogSnapshot,
+				jiraSnapshot,
+			);
 
 			expect(result.state).toBe("NeedsPush");
 			expect(result.backlogHash).toBe(newBacklogHash);
@@ -117,7 +127,12 @@ describe("sync-state", () => {
 				createdAt: new Date().toISOString(),
 			};
 
-			const result = classifySyncState(baseHash, newJiraHash, backlogSnapshot, jiraSnapshot);
+			const result = classifySyncState(
+				baseHash,
+				newJiraHash,
+				backlogSnapshot,
+				jiraSnapshot,
+			);
 
 			expect(result.state).toBe("NeedsPull");
 			expect(result.backlogHash).toBe(baseHash);
@@ -147,7 +162,12 @@ describe("sync-state", () => {
 				createdAt: new Date().toISOString(),
 			};
 
-			const result = classifySyncState(newBacklogHash, newJiraHash, backlogSnapshot, jiraSnapshot);
+			const result = classifySyncState(
+				newBacklogHash,
+				newJiraHash,
+				backlogSnapshot,
+				jiraSnapshot,
+			);
 
 			expect(result.state).toBe("Conflict");
 			expect(result.backlogHash).toBe(newBacklogHash);
@@ -178,7 +198,12 @@ describe("sync-state", () => {
 			};
 
 			// Both changed from different bases
-			const result = classifySyncState(currentHash, currentHash, backlogSnapshot, jiraSnapshot);
+			const result = classifySyncState(
+				currentHash,
+				currentHash,
+				backlogSnapshot,
+				jiraSnapshot,
+			);
 
 			expect(result.state).toBe("Conflict");
 			expect(result.baseBacklogHash).toBe(baseBacklogHash);

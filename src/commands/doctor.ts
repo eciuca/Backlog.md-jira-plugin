@@ -49,7 +49,9 @@ async function checkMCPServer(): Promise<void> {
 	// For now, just check if we're in a project with tasks
 	const result = await exec("backlog", ["task", "list", "--plain"]);
 	if (!result) {
-		logger.warn("  ⚠ No tasks found. Make sure you're in a Backlog.md project directory.");
+		logger.warn(
+			"  ⚠ No tasks found. Make sure you're in a Backlog.md project directory.",
+		);
 	} else {
 		logger.info("  ✓ Backlog.md project detected");
 	}
@@ -84,16 +86,26 @@ async function checkMCPConnectivity(): Promise<void> {
 	try {
 		// Try to list tasks via MCP (which uses the backlog CLI)
 		const startTime = Date.now();
-		const result = await exec("backlog", ["task", "list", "--plain", "-s", "To Do"]);
+		const result = await exec("backlog", [
+			"task",
+			"list",
+			"--plain",
+			"-s",
+			"To Do",
+		]);
 		const duration = Date.now() - startTime;
-		
+
 		if (duration > 5000) {
-			logger.warn(`  ⚠ MCP response slow (${duration}ms). Consider optimizing task count.`);
+			logger.warn(
+				`  ⚠ MCP response slow (${duration}ms). Consider optimizing task count.`,
+			);
 		} else {
 			logger.info(`  ✓ MCP connectivity OK (${duration}ms)`);
 		}
 	} catch (error) {
-		throw new Error("Failed to connect to MCP server. Ensure backlog CLI is working.");
+		throw new Error(
+			"Failed to connect to MCP server. Ensure backlog CLI is working.",
+		);
 	}
 }
 
@@ -126,19 +138,21 @@ async function checkConfigFile(): Promise<void> {
 	if (!existsSync(configPath)) {
 		throw new Error("Config file not found. Run 'backlog-jira init' first.");
 	}
-	
+
 	// Validate config structure
 	try {
 		const configContent = await Bun.file(configPath).text();
 		const config = JSON.parse(configContent);
-		
+
 		const requiredFields = ["jiraProjectKey", "mcpServerName"];
-		const missingFields = requiredFields.filter(field => !config[field]);
-		
+		const missingFields = requiredFields.filter((field) => !config[field]);
+
 		if (missingFields.length > 0) {
-			throw new Error(`Missing required config fields: ${missingFields.join(", ")}`);
+			throw new Error(
+				`Missing required config fields: ${missingFields.join(", ")}`,
+			);
 		}
-		
+
 		logger.info("  ✓ Configuration file valid");
 	} catch (error) {
 		if (error instanceof SyntaxError) {
@@ -184,12 +198,16 @@ export async function doctorCommand(): Promise<void> {
 	logger.info("");
 
 	if (criticalFailed) {
-		logger.error("Critical checks failed. Please fix the issues above before proceeding.");
+		logger.error(
+			"Critical checks failed. Please fix the issues above before proceeding.",
+		);
 		process.exit(1);
 	}
 
 	if (warningCount > 0) {
-		logger.info(`✓ All critical checks passed! (${warningCount} warning${warningCount > 1 ? "s" : ""})`);
+		logger.info(
+			`✓ All critical checks passed! (${warningCount} warning${warningCount > 1 ? "s" : ""})`,
+		);
 	} else {
 		logger.info("✓ All checks passed! Ready to sync.");
 	}

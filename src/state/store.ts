@@ -103,7 +103,14 @@ export class SyncStore {
 
 	getMapping(backlogId: string): Mapping | null {
 		const stmt = this.db.prepare("SELECT * FROM mappings WHERE backlog_id = ?");
-		const row = stmt.get(backlogId) as any;
+		const row = stmt.get(backlogId) as
+			| {
+					backlog_id: string;
+					jira_key: string;
+					created_at: string;
+					updated_at: string;
+			  }
+			| undefined;
 		if (!row) return null;
 		return {
 			backlogId: row.backlog_id,
@@ -115,7 +122,14 @@ export class SyncStore {
 
 	getMappingByJiraKey(jiraKey: string): Mapping | null {
 		const stmt = this.db.prepare("SELECT * FROM mappings WHERE jira_key = ?");
-		const row = stmt.get(jiraKey) as any;
+		const row = stmt.get(jiraKey) as
+			| {
+					backlog_id: string;
+					jira_key: string;
+					created_at: string;
+					updated_at: string;
+			  }
+			| undefined;
 		if (!row) return null;
 		return {
 			backlogId: row.backlog_id,
@@ -138,7 +152,12 @@ export class SyncStore {
 	}
 
 	// Snapshot methods
-	setSnapshot(backlogId: string, side: "backlog" | "jira", hash: string, payload: unknown): void {
+	setSnapshot(
+		backlogId: string,
+		side: "backlog" | "jira",
+		hash: string,
+		payload: unknown,
+	): void {
 		const stmt = this.db.prepare(`
 			INSERT OR REPLACE INTO snapshots (backlog_id, side, hash, payload, updated_at)
 			VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
@@ -148,18 +167,26 @@ export class SyncStore {
 	}
 
 	getSnapshot(backlogId: string, side: "backlog" | "jira"): Snapshot | null {
-		const stmt = this.db.prepare("SELECT * FROM snapshots WHERE backlog_id = ? AND side = ?");
+		const stmt = this.db.prepare(
+			"SELECT * FROM snapshots WHERE backlog_id = ? AND side = ?",
+		);
 		return stmt.get(backlogId, side) as Snapshot | null;
 	}
 
-	getSnapshots(backlogId: string): { backlog: Snapshot | null; jira: Snapshot | null } {
+	getSnapshots(backlogId: string): {
+		backlog: Snapshot | null;
+		jira: Snapshot | null;
+	} {
 		const backlog = this.getSnapshot(backlogId, "backlog");
 		const jira = this.getSnapshot(backlogId, "jira");
 		return { backlog, jira };
 	}
 
 	// Sync state methods
-	updateSyncState(backlogId: string, updates: Partial<Omit<SyncState, "backlogId">>): void {
+	updateSyncState(
+		backlogId: string,
+		updates: Partial<Omit<SyncState, "backlogId">>,
+	): void {
 		const fields: string[] = [];
 		const values: (string | null)[] = [];
 
@@ -190,12 +217,20 @@ export class SyncStore {
 	}
 
 	getSyncState(backlogId: string): SyncState | null {
-		const stmt = this.db.prepare("SELECT * FROM sync_state WHERE backlog_id = ?");
+		const stmt = this.db.prepare(
+			"SELECT * FROM sync_state WHERE backlog_id = ?",
+		);
 		return stmt.get(backlogId) as SyncState | null;
 	}
 
 	// Operations log
-	logOperation(op: string, backlogId: string | null, jiraKey: string | null, outcome: string, details?: string): void {
+	logOperation(
+		op: string,
+		backlogId: string | null,
+		jiraKey: string | null,
+		outcome: string,
+		details?: string,
+	): void {
 		const stmt = this.db.prepare(`
 			INSERT INTO ops_log (op, backlog_id, jira_key, outcome, details)
 			VALUES (?, ?, ?, ?, ?)
@@ -205,7 +240,9 @@ export class SyncStore {
 	}
 
 	getRecentOps(limit = 100): OpLog[] {
-		const stmt = this.db.prepare("SELECT * FROM ops_log ORDER BY id DESC LIMIT ?");
+		const stmt = this.db.prepare(
+			"SELECT * FROM ops_log ORDER BY id DESC LIMIT ?",
+		);
 		return stmt.all(limit) as OpLog[];
 	}
 

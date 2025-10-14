@@ -4,14 +4,22 @@ import { BacklogClient, type BacklogTask } from "../integrations/backlog.ts";
 import { JiraClient, type JiraIssue } from "../integrations/jira.ts";
 import { SyncStore } from "../state/store.ts";
 import { promptForConflictResolution } from "../ui/conflict-resolver.ts";
-import { logger } from "../utils/logger.ts";
-import { computeHash, normalizeBacklogTask, normalizeJiraIssue } from "../utils/normalizer.ts";
-import { type SyncState, classifySyncState } from "../utils/sync-state.ts";
 import { getTaskFilePath, updateJiraMetadata } from "../utils/frontmatter.ts";
+import { logger } from "../utils/logger.ts";
+import {
+	computeHash,
+	normalizeBacklogTask,
+	normalizeJiraIssue,
+} from "../utils/normalizer.ts";
+import { type SyncState, classifySyncState } from "../utils/sync-state.ts";
 import { pull } from "./pull.ts";
 import { push } from "./push.ts";
 
-export type ConflictStrategy = "prefer-backlog" | "prefer-jira" | "prompt" | "manual";
+export type ConflictStrategy =
+	| "prefer-backlog"
+	| "prefer-jira"
+	| "prompt"
+	| "manual";
 
 export interface SyncOptions {
 	taskIds?: string[];
@@ -59,7 +67,8 @@ export async function sync(options: SyncOptions = {}): Promise<SyncResult> {
 	const jira = new JiraClient();
 
 	const config = loadConfig();
-	const defaultStrategy = (config.sync?.conflictStrategy as ConflictStrategy) || "prompt";
+	const defaultStrategy =
+		(config.sync?.conflictStrategy as ConflictStrategy) || "prompt";
 	const strategy = options.strategy || defaultStrategy;
 
 	const result: SyncResult = {
@@ -103,7 +112,8 @@ export async function sync(options: SyncOptions = {}): Promise<SyncResult> {
 
 					logger.info({ taskId, outcome }, "Sync task completed");
 				} catch (error) {
-					const errorMsg = error instanceof Error ? error.message : String(error);
+					const errorMsg =
+						error instanceof Error ? error.message : String(error);
 					result.failed.push({ taskId, error: errorMsg });
 					logger.error({ taskId, error: errorMsg }, "Failed to sync task");
 					result.success = false;
@@ -113,7 +123,13 @@ export async function sync(options: SyncOptions = {}): Promise<SyncResult> {
 			await Promise.all(promises);
 		}
 
-		store.logOperation("sync", null, null, result.success ? "success" : "partial", JSON.stringify(result));
+		store.logOperation(
+			"sync",
+			null,
+			null,
+			result.success ? "success" : "partial",
+			JSON.stringify(result),
+		);
 	} finally {
 		store.close();
 	}
@@ -125,7 +141,10 @@ export async function sync(options: SyncOptions = {}): Promise<SyncResult> {
 /**
  * Get list of task IDs to sync
  */
-async function getTaskIds(options: SyncOptions, store: SyncStore): Promise<string[]> {
+async function getTaskIds(
+	options: SyncOptions,
+	store: SyncStore,
+): Promise<string[]> {
 	if (options.taskIds && options.taskIds.length > 0) {
 		return options.taskIds;
 	}
@@ -174,7 +193,12 @@ async function syncTask(
 
 	// Get snapshots and classify state
 	const snapshots = store.getSnapshots(taskId);
-	const state = classifySyncState(backlogHash, jiraHash, snapshots.backlog, snapshots.jira);
+	const state = classifySyncState(
+		backlogHash,
+		jiraHash,
+		snapshots.backlog,
+		snapshots.jira,
+	);
 
 	logger.debug({ taskId, state: state.state }, "Sync state classified");
 
@@ -207,7 +231,9 @@ async function syncTask(
 					fields: detectFieldConflicts(task, issue, snapshots),
 					backlogTask: task,
 					jiraIssue: issue,
-					baseBacklog: snapshots.backlog ? JSON.parse(snapshots.backlog.payload) : null,
+					baseBacklog: snapshots.backlog
+						? JSON.parse(snapshots.backlog.payload)
+						: null,
 					baseJira: snapshots.jira ? JSON.parse(snapshots.jira.payload) : null,
 				},
 				strategy,
@@ -219,7 +245,12 @@ async function syncTask(
 			logger.info({ taskId }, "No baseline snapshot, creating initial sync");
 			if (!dryRun) {
 				// Store current state as baseline
-				store.setSnapshot(taskId, "backlog", backlogHash, normalizeBacklogTask(task));
+				store.setSnapshot(
+					taskId,
+					"backlog",
+					backlogHash,
+					normalizeBacklogTask(task),
+				);
 				store.setSnapshot(taskId, "jira", jiraHash, normalizeJiraIssue(issue));
 				store.updateSyncState(taskId, {
 					lastSyncAt: new Date().toISOString(),
@@ -282,7 +313,10 @@ function detectFieldConflicts(
 	}
 
 	// Check description
-	if (task.description !== baseBacklog.description && issue.description !== baseJira.description) {
+	if (
+		task.description !== baseBacklog.description &&
+		issue.description !== baseJira.description
+	) {
 		conflicts.push({
 			field: "description",
 			backlogValue: task.description,
@@ -302,7 +336,10 @@ function detectFieldConflicts(
 	}
 
 	// Check assignee
-	if (task.assignee !== baseBacklog.assignee && issue.assignee !== baseJira.assignee) {
+	if (
+		task.assignee !== baseBacklog.assignee &&
+		issue.assignee !== baseJira.assignee
+	) {
 		conflicts.push({
 			field: "assignee",
 			backlogValue: task.assignee,
@@ -312,7 +349,10 @@ function detectFieldConflicts(
 	}
 
 	// Check priority
-	if (task.priority !== baseBacklog.priority && issue.priority !== baseJira.priority) {
+	if (
+		task.priority !== baseBacklog.priority &&
+		issue.priority !== baseJira.priority
+	) {
 		conflicts.push({
 			field: "priority",
 			backlogValue: task.priority,
@@ -354,7 +394,10 @@ async function resolveConflict(
 ): Promise<{ type: "conflict"; resolution: string }> {
 	const { store, backlog, jira, dryRun } = context;
 
-	logger.info({ taskId: conflict.taskId, strategy, fieldCount: conflict.fields.length }, "Resolving conflict");
+	logger.info(
+		{ taskId: conflict.taskId, strategy, fieldCount: conflict.fields.length },
+		"Resolving conflict",
+	);
 
 	switch (strategy) {
 		case "prefer-backlog":
@@ -375,7 +418,7 @@ async function resolveConflict(
 			// Interactive resolution in terminal
 			try {
 				const resolution = await promptForConflictResolution(conflict);
-				
+
 				// Apply field-by-field resolutions
 				if (!dryRun) {
 					await applyFieldResolutions(
@@ -384,19 +427,24 @@ async function resolveConflict(
 						resolution.resolutions,
 						{ backlog, jira, store },
 					);
-					
+
 					// Save preference if requested
 					if (resolution.savePreference) {
-						const preferredSource = determinePreferredSource(resolution.resolutions);
+						const preferredSource = determinePreferredSource(
+							resolution.resolutions,
+						);
 						if (preferredSource) {
 							saveConflictPreference(preferredSource);
 						}
 					}
 				}
-				
+
 				return { type: "conflict", resolution: "user-resolved" };
 			} catch (error) {
-				logger.error({ taskId: conflict.taskId, error }, "Interactive resolution failed");
+				logger.error(
+					{ taskId: conflict.taskId, error },
+					"Interactive resolution failed",
+				);
 				store.updateSyncState(conflict.taskId, {
 					conflictState: "manual-resolution-required",
 				});
@@ -439,7 +487,11 @@ function loadConfig(): {
 async function applyFieldResolutions(
 	taskId: string,
 	jiraKey: string,
-	resolutions: Array<{ field: string; source: "backlog" | "jira" | "manual"; value: unknown }>,
+	resolutions: Array<{
+		field: string;
+		source: "backlog" | "jira" | "manual";
+		value: unknown;
+	}>,
 	context: {
 		backlog: BacklogClient;
 		jira: JiraClient;
@@ -466,13 +518,19 @@ async function applyFieldResolutions(
 
 	// Update Backlog via CLI if needed
 	if (Object.keys(backlogUpdates).length > 0) {
-		logger.info({ taskId, fields: Object.keys(backlogUpdates) }, "Updating Backlog from Jira");
+		logger.info(
+			{ taskId, fields: Object.keys(backlogUpdates) },
+			"Updating Backlog from Jira",
+		);
 		await pull({ taskIds: [taskId], force: true });
 	}
 
 	// Update Jira if needed
 	if (Object.keys(jiraUpdates).length > 0) {
-		logger.info({ jiraKey, fields: Object.keys(jiraUpdates) }, "Updating Jira from Backlog");
+		logger.info(
+			{ jiraKey, fields: Object.keys(jiraUpdates) },
+			"Updating Jira from Backlog",
+		);
 		await push({ taskIds: [taskId], force: true });
 	}
 
@@ -524,7 +582,9 @@ async function applyFieldResolutions(
 function determinePreferredSource(
 	resolutions: Array<{ source: "backlog" | "jira" | "manual" }>,
 ): "prefer-backlog" | "prefer-jira" | null {
-	const sources = resolutions.map((r) => r.source).filter((s) => s !== "manual");
+	const sources = resolutions
+		.map((r) => r.source)
+		.filter((s) => s !== "manual");
 
 	if (sources.length === 0) {
 		return null;
@@ -547,7 +607,9 @@ function determinePreferredSource(
 /**
  * Save conflict preference to config
  */
-function saveConflictPreference(preference: "prefer-backlog" | "prefer-jira"): void {
+function saveConflictPreference(
+	preference: "prefer-backlog" | "prefer-jira",
+): void {
 	try {
 		const configPath = join(process.cwd(), ".backlog-jira", "config.json");
 		const config = loadConfig();

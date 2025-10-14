@@ -1,6 +1,6 @@
 /**
  * Display adapter for backlog-jira plugin
- * 
+ *
  * Wraps core display formatters to add Jira-specific metadata without modifying core files.
  * This maintains separation of concerns and allows the core to remain plugin-agnostic.
  */
@@ -27,7 +27,7 @@ export type TaskWithJira = Task & Partial<JiraMetadata>;
  */
 function formatJiraMetadataPlain(task: TaskWithJira): string[] {
 	const lines: string[] = [];
-	
+
 	if (!task.jiraKey && !task.jiraUrl && !task.jiraLastSync) {
 		// No Jira metadata to display
 		return lines;
@@ -36,24 +36,24 @@ function formatJiraMetadataPlain(task: TaskWithJira): string[] {
 	lines.push("");
 	lines.push("Jira Integration:");
 	lines.push("-".repeat(50));
-	
+
 	if (task.jiraKey) {
 		lines.push(`Jira Key: ${task.jiraKey}`);
 	}
-	
+
 	if (task.jiraUrl) {
 		lines.push(`Jira URL: ${task.jiraUrl}`);
 	}
-	
+
 	if (task.jiraLastSync) {
 		lines.push(`Last Sync: ${task.jiraLastSync}`);
 	}
-	
+
 	if (task.jiraSyncState) {
 		const stateIcon = getSyncStateIcon(task.jiraSyncState);
 		lines.push(`Sync State: ${stateIcon} ${task.jiraSyncState}`);
 	}
-	
+
 	return lines;
 }
 
@@ -82,7 +82,7 @@ function getSyncStateIcon(state: string): string {
  */
 function formatJiraMetadataBlessed(task: TaskWithJira): string[] {
 	const lines: string[] = [];
-	
+
 	if (!task.jiraKey && !task.jiraUrl && !task.jiraLastSync) {
 		// No Jira metadata to display
 		return lines;
@@ -90,25 +90,27 @@ function formatJiraMetadataBlessed(task: TaskWithJira): string[] {
 
 	lines.push("");
 	lines.push("{bold}{cyan-fg}Jira Integration{/}");
-	
+
 	if (task.jiraKey) {
 		lines.push(`{bold}Jira Key:{/bold} {blue-fg}${task.jiraKey}{/}`);
 	}
-	
+
 	if (task.jiraUrl) {
 		lines.push(`{bold}Jira URL:{/bold} {blue-fg}${task.jiraUrl}{/}`);
 	}
-	
+
 	if (task.jiraLastSync) {
 		lines.push(`{bold}Last Sync:{/bold} ${task.jiraLastSync}`);
 	}
-	
+
 	if (task.jiraSyncState) {
 		const stateIcon = getSyncStateIcon(task.jiraSyncState);
 		const stateColor = getSyncStateColor(task.jiraSyncState);
-		lines.push(`{bold}Sync State:{/bold} {${stateColor}-fg}${stateIcon} ${task.jiraSyncState}{/}`);
+		lines.push(
+			`{bold}Sync State:{/bold} {${stateColor}-fg}${stateIcon} ${task.jiraSyncState}{/}`,
+		);
 	}
-	
+
 	return lines;
 }
 
@@ -133,91 +135,80 @@ function getSyncStateColor(state: string): string {
 }
 
 /**
- * Plain text display adapter
- * 
- * Wraps core formatTaskPlainText to add Jira metadata section
+ * Format task with Jira metadata for plain text output
+ *
+ * @param task Task to format (may include Jira metadata)
+ * @param content Task markdown content
+ * @param filePath Optional file path
+ * @param coreFormatter Core formatter function from backlog.md
+ * @returns Formatted plain text with Jira metadata
  */
-export class PlainTextDisplayAdapter {
-	/**
-	 * Format task with Jira metadata for plain text output
-	 * 
-	 * @param task Task to format (may include Jira metadata)
-	 * @param content Task markdown content
-	 * @param filePath Optional file path
-	 * @param coreFormatter Core formatter function from backlog.md
-	 * @returns Formatted plain text with Jira metadata
-	 */
-	static formatTaskWithJira(
-		task: TaskWithJira,
-		content: string,
-		filePath: string | undefined,
-		coreFormatter: (task: Task, content: string, filePath?: string) => string,
-	): string {
-		// Get core formatted output
-		const coreOutput = coreFormatter(task, content, filePath);
-		
-		// Add Jira metadata section
-		const jiraMetadata = formatJiraMetadataPlain(task);
-		
-		if (jiraMetadata.length === 0) {
-			return coreOutput;
-		}
-		
-		return coreOutput + "\n" + jiraMetadata.join("\n");
+export function formatTaskWithJira(
+	task: TaskWithJira,
+	content: string,
+	filePath: string | undefined,
+	coreFormatter: (task: Task, content: string, filePath?: string) => string,
+): string {
+	// Get core formatted output
+	const coreOutput = coreFormatter(task, content, filePath);
+
+	// Add Jira metadata section
+	const jiraMetadata = formatJiraMetadataPlain(task);
+
+	if (jiraMetadata.length === 0) {
+		return coreOutput;
 	}
+
+	return `${coreOutput}\n${jiraMetadata.join("\n")}`;
 }
 
 /**
- * Blessed UI display adapter
- * 
- * Extends core generateDetailContent for terminal UI to show Jira fields
+ * Generate detail content with Jira metadata for blessed UI
+ *
+ * @param task Task to format (may include Jira metadata)
+ * @param rawContent Raw markdown content
+ * @param coreGenerator Core detail content generator from backlog.md
+ * @returns Detail content with Jira metadata
  */
-export class BlessedDisplayAdapter {
-	/**
-	 * Generate detail content with Jira metadata for blessed UI
-	 * 
-	 * @param task Task to format (may include Jira metadata)
-	 * @param rawContent Raw markdown content
-	 * @param coreGenerator Core detail content generator from backlog.md
-	 * @returns Detail content with Jira metadata
-	 */
-	static generateDetailContentWithJira(
-		task: TaskWithJira,
+export function generateDetailContentWithJira(
+	task: TaskWithJira,
+	rawContent: string,
+	coreGenerator: (
+		task: Task,
 		rawContent: string,
-		coreGenerator: (task: Task, rawContent: string) => { headerContent: string[]; bodyContent: string[] },
-	): { headerContent: string[]; bodyContent: string[] } {
-		// Get core generated content
-		const coreContent = coreGenerator(task, rawContent);
-		
-		// Add Jira metadata to body content (after metadata section)
-		const jiraMetadata = formatJiraMetadataBlessed(task);
-		
-		if (jiraMetadata.length > 0) {
-			// Insert Jira metadata after the core metadata section
-			// Find the position after the Details section
-			const detailsIndex = coreContent.bodyContent.findIndex((line) => 
-				line.includes("Details")
-			);
-			
-			if (detailsIndex >= 0) {
-				// Find next section (usually Description)
-				let insertIndex = detailsIndex + 1;
-				while (
-					insertIndex < coreContent.bodyContent.length &&
-					!coreContent.bodyContent[insertIndex].includes("{bold}{cyan-fg}") &&
-					!coreContent.bodyContent[insertIndex].startsWith("##")
-				) {
-					insertIndex++;
-				}
-				
-				// Insert Jira metadata before next section
-				coreContent.bodyContent.splice(insertIndex, 0, ...jiraMetadata);
-			} else {
-				// If Details section not found, append to end
-				coreContent.bodyContent.push(...jiraMetadata);
+	) => { headerContent: string[]; bodyContent: string[] },
+): { headerContent: string[]; bodyContent: string[] } {
+	// Get core generated content
+	const coreContent = coreGenerator(task, rawContent);
+
+	// Add Jira metadata to body content (after metadata section)
+	const jiraMetadata = formatJiraMetadataBlessed(task);
+
+	if (jiraMetadata.length > 0) {
+		// Insert Jira metadata after the core metadata section
+		// Find the position after the Details section
+		const detailsIndex = coreContent.bodyContent.findIndex((line) =>
+			line.includes("Details"),
+		);
+
+		if (detailsIndex >= 0) {
+			// Find next section (usually Description)
+			let insertIndex = detailsIndex + 1;
+			while (
+				insertIndex < coreContent.bodyContent.length &&
+				!coreContent.bodyContent[insertIndex].includes("{bold}{cyan-fg}") &&
+				!coreContent.bodyContent[insertIndex].startsWith("##")
+			) {
+				insertIndex++;
 			}
+
+			// Insert Jira metadata before next section
+			coreContent.bodyContent.splice(insertIndex, 0, ...jiraMetadata);
+		} else {
+			// If Details section not found, append to end
+			coreContent.bodyContent.push(...jiraMetadata);
 		}
-		
-		return coreContent;
 	}
+
+	return coreContent;
 }

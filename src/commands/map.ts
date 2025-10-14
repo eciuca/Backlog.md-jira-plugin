@@ -6,7 +6,11 @@ import { JiraClient } from "../integrations/jira.ts";
 import { SyncStore } from "../state/store.ts";
 import { getTaskFilePath, updateJiraMetadata } from "../utils/frontmatter.ts";
 import { logger } from "../utils/logger.ts";
-import { computeHash, normalizeBacklogTask, normalizeJiraIssue } from "../utils/normalizer.ts";
+import {
+	computeHash,
+	normalizeBacklogTask,
+	normalizeJiraIssue,
+} from "../utils/normalizer.ts";
 
 /**
  * Calculate similarity between two strings (simple fuzzy matching)
@@ -35,7 +39,10 @@ function calculateSimilarity(a: string, b: string): number {
 /**
  * Auto-map command: discover tasks and issues with matching titles
  */
-async function autoMap(options: { dryRun?: boolean; minScore?: number }): Promise<void> {
+async function autoMap(options: {
+	dryRun?: boolean;
+	minScore?: number;
+}): Promise<void> {
 	const store = new SyncStore();
 	const backlog = new BacklogClient();
 	const jira = new JiraClient();
@@ -92,7 +99,9 @@ async function autoMap(options: { dryRun?: boolean; minScore?: number }): Promis
 
 				// Take best match
 				const best = candidates[0];
-				console.log(`   ✓ Match found: ${best.issue.key} (score: ${best.score.toFixed(2)})`);
+				console.log(
+					`   ✓ Match found: ${best.issue.key} (score: ${best.score.toFixed(2)})`,
+				);
 				console.log(`     "${best.issue.summary}"`);
 
 				if (!options.dryRun) {
@@ -125,7 +134,10 @@ async function autoMap(options: { dryRun?: boolean; minScore?: number }): Promis
 					mappedCount++;
 				}
 			} catch (error) {
-				logger.error({ error, taskId: task.id }, "Failed to search for matches");
+				logger.error(
+					{ error, taskId: task.id },
+					"Failed to search for matches",
+				);
 				console.log(`   ⚠️  Error searching: ${error}`);
 			}
 		}
@@ -204,7 +216,9 @@ async function interactiveMap(): Promise<void> {
 
 			if (choice.toLowerCase() === "s") {
 				const customJql = await rl.question("Enter JQL query: ");
-				const customResult = await jira.searchIssues(customJql, { maxResults: 10 });
+				const customResult = await jira.searchIssues(customJql, {
+					maxResults: 10,
+				});
 
 				if (customResult.issues.length === 0) {
 					console.log("No issues found");
@@ -216,7 +230,9 @@ async function interactiveMap(): Promise<void> {
 					console.log(`[${idx + 1}] ${issue.key} - ${issue.summary}`);
 				});
 
-				const customChoice = await rl.question("\nSelect issue number (0 to skip): ");
+				const customChoice = await rl.question(
+					"\nSelect issue number (0 to skip): ",
+				);
 				const customIdx = Number.parseInt(customChoice, 10);
 
 				if (customIdx > 0 && customIdx <= customResult.issues.length) {
@@ -285,11 +301,15 @@ async function createMapping(
  * Register map command with CLI
  */
 export function registerMapCommand(program: Command): void {
-	const mapCmd = program.command("map").description("Map Backlog tasks to Jira issues");
+	const mapCmd = program
+		.command("map")
+		.description("Map Backlog tasks to Jira issues");
 
 	mapCmd
 		.command("auto")
-		.description("Automatically discover and map tasks to issues by title matching")
+		.description(
+			"Automatically discover and map tasks to issues by title matching",
+		)
 		.option("--dry-run", "Show what would be mapped without making changes")
 		.option("--min-score <score>", "Minimum similarity score (0-1)", "0.7")
 		.action(async (options) => {

@@ -105,11 +105,16 @@ export function formatAcceptanceCriteriaForJira(
  * Remove acceptance criteria section from a description
  * Returns the description without the AC section
  */
-export function stripAcceptanceCriteriaFromDescription(description: string): string {
+export function stripAcceptanceCriteriaFromDescription(
+	description: string,
+): string {
 	if (!description) return "";
 
 	// Remove AC section (case-insensitive, handles variations)
-	const withoutAc = description.replace(/\n\n?Acceptance Criteria:?\s*[\s\S]*?(?=\n\n|$)/i, "");
+	const withoutAc = description.replace(
+		/\n\n?Acceptance Criteria:?\s*[\s\S]*?(?=\n\n|$)/i,
+		"",
+	);
 	return withoutAc.trim();
 }
 
@@ -130,11 +135,15 @@ export function mergeDescriptionWithAc(
  * Extract acceptance criteria from Jira description
  * Looks for patterns like "Acceptance Criteria:" followed by bullet points
  */
-function extractAcceptanceCriteria(description: string): Array<{ text: string; checked: boolean }> {
+function extractAcceptanceCriteria(
+	description: string,
+): Array<{ text: string; checked: boolean }> {
 	const criteria: Array<{ text: string; checked: boolean }> = [];
 
 	// Look for AC section
-	const acMatch = description.match(/acceptance criteria:?\s*([\s\S]*?)(?=\n\n|$)/i);
+	const acMatch = description.match(
+		/acceptance criteria:?\s*([\s\S]*?)(?=\n\n|$)/i,
+	);
 	if (!acMatch) return criteria;
 
 	const acSection = acMatch[1];
@@ -182,7 +191,10 @@ export function computeHash(payload: NormalizedPayload): string {
  * Compare two normalized payloads field by field
  * Returns a list of changed fields
  */
-export function comparePayloads(a: NormalizedPayload, b: NormalizedPayload): string[] {
+export function comparePayloads(
+	a: NormalizedPayload,
+	b: NormalizedPayload,
+): string[] {
 	const changes: string[] = [];
 
 	if (a.title !== b.title) changes.push("title");
@@ -195,7 +207,10 @@ export function comparePayloads(a: NormalizedPayload, b: NormalizedPayload): str
 	if (JSON.stringify(a.labels) !== JSON.stringify(b.labels)) {
 		changes.push("labels");
 	}
-	if (JSON.stringify(a.acceptanceCriteria) !== JSON.stringify(b.acceptanceCriteria)) {
+	if (
+		JSON.stringify(a.acceptanceCriteria) !==
+		JSON.stringify(b.acceptanceCriteria)
+	) {
 		changes.push("acceptanceCriteria");
 	}
 

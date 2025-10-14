@@ -41,7 +41,10 @@ export class BacklogClient {
 	 */
 	private async execute(args: string[]): Promise<string> {
 		return new Promise((resolve, reject) => {
-			logger.debug({ command: this.cliPath, args }, "Executing Backlog CLI command");
+			logger.debug(
+				{ command: this.cliPath, args },
+				"Executing Backlog CLI command",
+			);
 
 			const proc = spawn(this.cliPath, args, {
 				stdio: ["inherit", "pipe", "pipe"],
@@ -63,7 +66,10 @@ export class BacklogClient {
 					logger.error({ code, stderr, args }, "Backlog CLI command failed");
 					reject(new Error(`Backlog CLI failed with code ${code}: ${stderr}`));
 				} else {
-					logger.debug({ args, outputLength: stdout.length }, "Backlog CLI command succeeded");
+					logger.debug(
+						{ args, outputLength: stdout.length },
+						"Backlog CLI command succeeded",
+					);
 					resolve(stdout);
 				}
 			});
@@ -149,14 +155,14 @@ export class BacklogClient {
 			priority?: string;
 			notes?: string;
 			appendNotes?: string;
-		plan?: string;
-		addAc?: string[];
-		removeAc?: number[];
-		checkAc?: number[];
-		uncheckAc?: number[];
-	},
-): Promise<void> {
-	const args = ["task", "edit", taskId];
+			plan?: string;
+			addAc?: string[];
+			removeAc?: number[];
+			checkAc?: number[];
+			uncheckAc?: number[];
+		},
+	): Promise<void> {
+		const args = ["task", "edit", taskId];
 
 		if (updates.title) {
 			args.push("-t", updates.title);
@@ -182,30 +188,30 @@ export class BacklogClient {
 		if (updates.appendNotes) {
 			args.push("--append-notes", this.escapeMultiline(updates.appendNotes));
 		}
-	if (updates.plan) {
-		args.push("--plan", this.escapeMultiline(updates.plan));
-	}
-	if (updates.addAc) {
-		for (const ac of updates.addAc) {
-			args.push("--ac", ac);
+		if (updates.plan) {
+			args.push("--plan", this.escapeMultiline(updates.plan));
 		}
-	}
-	if (updates.removeAc) {
-		// Process in reverse order to avoid index shifting
-		for (const index of updates.removeAc.sort((a, b) => b - a)) {
-			args.push("--remove-ac", index.toString());
+		if (updates.addAc) {
+			for (const ac of updates.addAc) {
+				args.push("--ac", ac);
+			}
 		}
-	}
-	if (updates.checkAc) {
-		for (const index of updates.checkAc) {
-			args.push("--check-ac", index.toString());
+		if (updates.removeAc) {
+			// Process in reverse order to avoid index shifting
+			for (const index of updates.removeAc.sort((a, b) => b - a)) {
+				args.push("--remove-ac", index.toString());
+			}
 		}
-	}
-	if (updates.uncheckAc) {
-		for (const index of updates.uncheckAc) {
-			args.push("--uncheck-ac", index.toString());
+		if (updates.checkAc) {
+			for (const index of updates.checkAc) {
+				args.push("--check-ac", index.toString());
+			}
 		}
-	}
+		if (updates.uncheckAc) {
+			for (const index of updates.uncheckAc) {
+				args.push("--uncheck-ac", index.toString());
+			}
+		}
 
 		try {
 			await this.execute(args);
@@ -241,7 +247,9 @@ export class BacklogClient {
 					title: title.trim(),
 					status: status || "Unknown",
 					assignee: assignee || undefined,
-					labels: labelsStr ? labelsStr.split(",").map((l) => l.trim()) : undefined,
+					labels: labelsStr
+						? labelsStr.split(",").map((l) => l.trim())
+						: undefined,
 					priority: priority || undefined,
 				});
 			}
@@ -279,7 +287,9 @@ export class BacklogClient {
 				task.assignee = line.replace("Assignee:", "").trim().replace(/^@/, "");
 			} else if (line.startsWith("Labels:")) {
 				const labelsStr = line.replace("Labels:", "").trim();
-				task.labels = labelsStr ? labelsStr.split(",").map((l) => l.trim()) : [];
+				task.labels = labelsStr
+					? labelsStr.split(",").map((l) => l.trim())
+					: [];
 			} else if (line.startsWith("Priority:")) {
 				task.priority = line.replace("Priority:", "").trim();
 			} else if (line.startsWith("Created:")) {
@@ -290,7 +300,6 @@ export class BacklogClient {
 				task.parent = line.replace("Parent:", "").trim();
 			} else if (line.match(/^[-=]{2,}$/)) {
 				// Section dividers - skip them, they're just visual separators
-				continue;
 			} else if (line.endsWith(":") && !line.startsWith(" ")) {
 				// Section header - save previous section first
 				if (currentSection && sectionContent.length > 0) {
@@ -336,7 +345,11 @@ export class BacklogClient {
 	/**
 	 * Assign parsed content to appropriate task field
 	 */
-	private assignSection(task: Partial<BacklogTask>, section: string, content: string): void {
+	private assignSection(
+		task: Partial<BacklogTask>,
+		section: string,
+		content: string,
+	): void {
 		const trimmed = content.trim();
 		if (!trimmed) return;
 

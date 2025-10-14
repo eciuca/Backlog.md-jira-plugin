@@ -1,39 +1,55 @@
-import { describe, expect, it, mock, beforeEach, afterEach } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
 import type { PullOptions } from "./pull.ts";
 
 // Mock clients and store
 const mockBacklogClient = {
-	getTask: mock(() => Promise.resolve({
-		id: "task-1",
-		title: "Old Task",
-		description: "Old description",
-		status: "To Do",
-		assignee: "alice",
-		priority: "high",
-		labels: ["backend"],
-	})),
+	getTask: mock(() =>
+		Promise.resolve({
+			id: "task-1",
+			title: "Old Task",
+			description: "Old description",
+			status: "To Do",
+			assignee: "alice",
+			priority: "high",
+			labels: ["backend"],
+		}),
+	),
 	updateTask: mock(() => Promise.resolve()),
 };
 
 const mockJiraClient = {
-	getIssue: mock(() => Promise.resolve({
-		key: "PROJ-1",
-		id: "10001",
-		summary: "Updated Task",
-		description: "Updated description",
-		status: "In Progress",
-		assignee: "bob",
-		priority: "medium",
-		labels: ["frontend"],
-	})),
+	getIssue: mock(() =>
+		Promise.resolve({
+			key: "PROJ-1",
+			id: "10001",
+			summary: "Updated Task",
+			description: "Updated description",
+			status: "In Progress",
+			assignee: "bob",
+			priority: "medium",
+			labels: ["frontend"],
+		}),
+	),
 };
 
 const mockStore = {
 	getMapping: mock(() => ({ taskId: "task-1", jiraKey: "PROJ-1" })),
 	getAllMappings: mock(() => new Map([["task-1", "PROJ-1"]])),
 	getSnapshots: mock(() => ({
-		backlog: { hash: "baseHash", payload: "{}", taskId: "task-1", source: "backlog", createdAt: new Date().toISOString() },
-		jira: { hash: "baseHash", payload: "{}", taskId: "task-1", source: "jira", createdAt: new Date().toISOString() },
+		backlog: {
+			hash: "baseHash",
+			payload: "{}",
+			taskId: "task-1",
+			source: "backlog",
+			createdAt: new Date().toISOString(),
+		},
+		jira: {
+			hash: "baseHash",
+			payload: "{}",
+			taskId: "task-1",
+			source: "jira",
+			createdAt: new Date().toISOString(),
+		},
 	})),
 	setSnapshot: mock(() => {}),
 	updateSyncState: mock(() => {}),
@@ -115,7 +131,10 @@ describe("pull command", () => {
 			// Apply via CLI
 			await mockBacklogClient.updateTask("task-1", updates);
 
-			expect(mockBacklogClient.updateTask).toHaveBeenCalledWith("task-1", updates);
+			expect(mockBacklogClient.updateTask).toHaveBeenCalledWith(
+				"task-1",
+				updates,
+			);
 		});
 
 		it("should only update changed fields", async () => {
@@ -161,21 +180,21 @@ describe("pull command", () => {
 
 			const mappings: Record<string, string> = {
 				"To Do": "To Do",
-				"Open": "To Do",
-				"Backlog": "To Do",
+				Open: "To Do",
+				Backlog: "To Do",
 				"In Progress": "In Progress",
-				"Done": "Done",
-				"Closed": "Done",
-				"Resolved": "Done",
+				Done: "Done",
+				Closed: "Done",
+				Resolved: "Done",
 			};
 
 			expect(mappings["To Do"]).toBe("To Do");
-			expect(mappings["Open"]).toBe("To Do");
-			expect(mappings["Backlog"]).toBe("To Do");
+			expect(mappings.Open).toBe("To Do");
+			expect(mappings.Backlog).toBe("To Do");
 			expect(mappings["In Progress"]).toBe("In Progress");
-			expect(mappings["Done"]).toBe("Done");
-			expect(mappings["Closed"]).toBe("Done");
-			expect(mappings["Resolved"]).toBe("Done");
+			expect(mappings.Done).toBe("Done");
+			expect(mappings.Closed).toBe("Done");
+			expect(mappings.Resolved).toBe("Done");
 		});
 
 		it("should use original status if no mapping exists", () => {
@@ -183,7 +202,7 @@ describe("pull command", () => {
 			const mappings: Record<string, string> = {
 				"To Do": "To Do",
 				"In Progress": "In Progress",
-				"Done": "Done",
+				Done: "Done",
 			};
 
 			const backlogStatus = mappings[jiraStatus] || jiraStatus;
@@ -203,8 +222,20 @@ describe("pull command", () => {
 			const baseHash = "originalHash";
 
 			mockStore.getSnapshots.mockReturnValue({
-				backlog: { hash: baseHash, payload: "{}", taskId: "task-1", source: "backlog", createdAt: new Date().toISOString() },
-				jira: { hash: baseHash, payload: "{}", taskId: "task-1", source: "jira", createdAt: new Date().toISOString() },
+				backlog: {
+					hash: baseHash,
+					payload: "{}",
+					taskId: "task-1",
+					source: "backlog",
+					createdAt: new Date().toISOString(),
+				},
+				jira: {
+					hash: baseHash,
+					payload: "{}",
+					taskId: "task-1",
+					source: "jira",
+					createdAt: new Date().toISOString(),
+				},
 			});
 
 			mockClassifySyncState.mockReturnValue({
@@ -215,7 +246,12 @@ describe("pull command", () => {
 				baseJiraHash: baseHash,
 			});
 
-			const result = mockClassifySyncState(backlogHash, jiraHash, baseHash, baseHash);
+			const result = mockClassifySyncState(
+				backlogHash,
+				jiraHash,
+				baseHash,
+				baseHash,
+			);
 
 			expect(result.state).toBe("Conflict");
 		});
@@ -226,7 +262,9 @@ describe("pull command", () => {
 
 			if (!force && syncState.state === "Conflict") {
 				const shouldThrow = () => {
-					throw new Error("Conflict detected. Use --force to override or run 'backlog-jira sync' to resolve");
+					throw new Error(
+						"Conflict detected. Use --force to override or run 'backlog-jira sync' to resolve",
+					);
 				};
 
 				expect(shouldThrow).toThrow("Conflict detected");
@@ -268,11 +306,13 @@ describe("pull command", () => {
 				all: true,
 			};
 
-			mockStore.getAllMappings.mockReturnValue(new Map([
-				["task-1", "PROJ-1"],
-				["task-2", "PROJ-2"],
-				["task-3", "PROJ-3"],
-			]));
+			mockStore.getAllMappings.mockReturnValue(
+				new Map([
+					["task-1", "PROJ-1"],
+					["task-2", "PROJ-2"],
+					["task-3", "PROJ-3"],
+				]),
+			);
 
 			const mappings = mockStore.getAllMappings();
 			const taskIds = Array.from(mappings.keys());
@@ -314,8 +354,18 @@ describe("pull command", () => {
 			mockStore.setSnapshot("task-1", "backlog", syncedHash, task);
 			mockStore.setSnapshot("task-1", "jira", syncedHash, issue);
 
-			expect(mockStore.setSnapshot).toHaveBeenCalledWith("task-1", "backlog", syncedHash, task);
-			expect(mockStore.setSnapshot).toHaveBeenCalledWith("task-1", "jira", syncedHash, issue);
+			expect(mockStore.setSnapshot).toHaveBeenCalledWith(
+				"task-1",
+				"backlog",
+				syncedHash,
+				task,
+			);
+			expect(mockStore.setSnapshot).toHaveBeenCalledWith(
+				"task-1",
+				"jira",
+				syncedHash,
+				issue,
+			);
 		});
 
 		it("should update sync state after successful pull", () => {
@@ -359,7 +409,9 @@ describe("pull command", () => {
 		});
 
 		it("should handle Backlog CLI errors", async () => {
-			mockBacklogClient.updateTask.mockRejectedValue(new Error("Task not found"));
+			mockBacklogClient.updateTask.mockRejectedValue(
+				new Error("Task not found"),
+			);
 
 			try {
 				await mockBacklogClient.updateTask("invalid-task", {});
@@ -417,14 +469,20 @@ describe("pull command", () => {
 				skipped: [],
 			};
 
-			mockStore.logOperation("pull", null, null, "success", JSON.stringify(result));
+			mockStore.logOperation(
+				"pull",
+				null,
+				null,
+				"success",
+				JSON.stringify(result),
+			);
 
 			expect(mockStore.logOperation).toHaveBeenCalledWith(
 				"pull",
 				null,
 				null,
 				"success",
-				JSON.stringify(result)
+				JSON.stringify(result),
 			);
 		});
 	});

@@ -120,7 +120,10 @@ export class JiraClient {
 	/**
 	 * Call an MCP tool via MCP SDK
 	 */
-	private async callMcpTool(toolName: string, input: Record<string, unknown>): Promise<unknown> {
+	private async callMcpTool(
+		toolName: string,
+		input: Record<string, unknown>,
+	): Promise<unknown> {
 		try {
 			const client = await this.ensureConnected();
 			logger.info({ toolName, input }, "About to call MCP tool");
@@ -129,10 +132,15 @@ export class JiraClient {
 				name: toolName,
 				arguments: input,
 			});
-			logger.info({ toolName, hasContent: !!result.content }, "MCP tool returned");
+			logger.info(
+				{ toolName, hasContent: !!result.content },
+				"MCP tool returned",
+			);
 
 			// Extract the actual content from the MCP response
-			const resultContent = result.content as Array<{ type: string; text?: string }> | undefined;
+			const resultContent = result.content as
+				| Array<{ type: string; text?: string }>
+				| undefined;
 			if (resultContent && resultContent.length > 0) {
 				const content = resultContent[0];
 				if (content.type === "text" && content.text) {
@@ -150,7 +158,10 @@ export class JiraClient {
 
 			// If there's structured content, use that
 			if (result.structuredContent) {
-				logger.debug({ toolName }, "MCP tool call succeeded with structured content");
+				logger.debug(
+					{ toolName },
+					"MCP tool call succeeded with structured content",
+				);
 				return result.structuredContent;
 			}
 
@@ -238,7 +249,10 @@ export class JiraClient {
 				fields: issue.fields,
 			}));
 
-			logger.info({ jql, count: issues.length, total: result.total }, "Searched Jira issues");
+			logger.info(
+				{ jql, count: issues.length, total: result.total },
+				"Searched Jira issues",
+			);
 
 			return {
 				issues,
@@ -255,7 +269,10 @@ export class JiraClient {
 	/**
 	 * Get a specific Jira issue by key
 	 */
-	async getIssue(issueKey: string, options?: { fields?: string; expand?: string }): Promise<JiraIssue> {
+	async getIssue(
+		issueKey: string,
+		options?: { fields?: string; expand?: string },
+	): Promise<JiraIssue> {
 		try {
 			logger.info({ issueKey, options }, "getIssue called with parameters");
 			const input: Record<string, unknown> = {
@@ -300,7 +317,7 @@ export class JiraClient {
 				labels: typedResult.labels || [],
 				created: typedResult.created,
 				updated: typedResult.updated,
-				fields: typedResult as any,
+				fields: typedResult as Record<string, unknown>,
 			};
 
 			logger.info({ issueKey }, "Retrieved Jira issue");
@@ -377,7 +394,10 @@ export class JiraClient {
 				}>;
 			};
 
-			logger.debug({ issueKey, count: result.transitions.length }, "Retrieved Jira transitions");
+			logger.debug(
+				{ issueKey, count: result.transitions.length },
+				"Retrieved Jira transitions",
+			);
 			return result.transitions;
 		} catch (error) {
 			logger.error({ error, issueKey }, "Failed to get Jira transitions");
@@ -412,7 +432,10 @@ export class JiraClient {
 			await this.callMcpTool("jira_transition_issue", input);
 			logger.info({ issueKey, transitionId }, "Transitioned Jira issue");
 		} catch (error) {
-			logger.error({ error, issueKey, transitionId }, "Failed to transition Jira issue");
+			logger.error(
+				{ error, issueKey, transitionId },
+				"Failed to transition Jira issue",
+			);
 			throw error;
 		}
 	}
@@ -510,10 +533,16 @@ export class JiraClient {
 				fields: result.fields,
 			};
 
-			logger.info({ issueKey: issue.key, projectKey, issueType }, "Created Jira issue");
+			logger.info(
+				{ issueKey: issue.key, projectKey, issueType },
+				"Created Jira issue",
+			);
 			return issue;
 		} catch (error) {
-			logger.error({ error, projectKey, issueType, summary }, "Failed to create Jira issue");
+			logger.error(
+				{ error, projectKey, issueType, summary },
+				"Failed to create Jira issue",
+			);
 			throw error;
 		}
 	}
