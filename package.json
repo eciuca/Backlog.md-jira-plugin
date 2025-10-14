@@ -33,6 +33,7 @@
 	"build": "bun build --target=node --external better-sqlite3 --external pino --external pino-pretty src/cli.ts --outdir=dist",
 		"dev": "bun run src/cli.ts",
 		"test": "bun test",
+		"test:integration": "./tests/integration/test-clean-install.sh",
 		"check": "biome check .",
 		"check:types": "bunx tsc --noEmit",
 		"prepublishOnly": "npm run build && npm run check && npm run test"
