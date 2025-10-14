@@ -10,13 +10,14 @@ import { registerStatusCommand } from "./commands/status.ts";
 import { sync } from "./commands/sync.ts";
 import { registerViewCommand } from "./commands/view.ts";
 import { watch } from "./commands/watch.ts";
+import packageJson from "../package.json";
 
 const program = new Command();
 
 program
 	.name("backlog-jira")
 	.description("Bidirectional sync plugin between Backlog.md and Jira")
-	.version("0.1.0");
+	.version(packageJson.version);
 
 program
 	.command("init")
