@@ -3,15 +3,39 @@
 	"version": "0.1.0",
 	"description": "Bidirectional sync plugin between Backlog.md and Jira via MCP",
 	"type": "module",
+	"author": "Emanuel Ciuca <emanuel.ciuca@gmail.com>",
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/eciuca/Backlog.md-jira-plugin.git"
+	},
+	"bugs": {
+		"url": "https://github.com/eciuca/Backlog.md-jira-plugin/issues"
+	},
+	"homepage": "https://github.com/eciuca/Backlog.md-jira-plugin#readme",
+	"keywords": [
+		"backlog",
+		"jira",
+		"plugin",
+		"cli",
+		"sync",
+		"bidirectional",
+		"mcp",
+		"task-management",
+		"atlassian",
+		"project-management"
+	],
 	"bin": {
 		"backlog-jira": "dist/cli.js"
 	},
+	"files": ["dist", "README.md", "LICENSE"],
 	"scripts": {
 		"build": "bun build --target=bun src/cli.ts --outdir=dist",
 		"dev": "bun run src/cli.ts",
 		"test": "bun test",
 		"check": "biome check .",
-		"check:types": "bunx tsc --noEmit"
+		"check:types": "bunx tsc --noEmit",
+		"prepublishOnly": "npm run build && npm run check && npm run test"
 	},
 	"dependencies": {
 		"@inquirer/prompts": "^7.8.6",
