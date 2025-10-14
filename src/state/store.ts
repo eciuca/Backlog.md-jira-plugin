@@ -3,8 +3,7 @@
 const Database =
 	typeof Bun !== "undefined"
 		? // @ts-ignore - bun:sqlite only exists in Bun runtime
-		  // biome-ignore lint/correctness/noUndeclaredDependencies: bun:sqlite is Bun built-in
-		  require("bun:sqlite").Database
+			require("bun:sqlite").Database
 		: require("better-sqlite3");
 import { existsSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
