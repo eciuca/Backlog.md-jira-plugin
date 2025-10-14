@@ -1,6 +1,6 @@
 {
 	"name": "backlog-jira",
-	"version": "0.1.1",
+	"version": "0.1.2",
 	"description": "Bidirectional sync plugin between Backlog.md and Jira via MCP",
 	"type": "module",
 	"author": "Emanuel Ciuca <emanuel.ciuca@gmail.com>",
@@ -28,7 +28,11 @@
 	"bin": {
 		"backlog-jira": "dist/cli.js"
 	},
-	"files": ["dist", "README.md", "LICENSE"],
+	"files": [
+		"dist",
+		"README.md",
+		"LICENSE"
+	],
 	"scripts": {
 		"build": "bun build --target=node --external better-sqlite3 src/cli.ts --outdir=dist",
 		"dev": "bun run src/cli.ts",
