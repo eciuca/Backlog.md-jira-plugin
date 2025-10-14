@@ -5,7 +5,7 @@
  * This maintains separation of concerns and allows the core to remain plugin-agnostic.
  */
 
-import type { Task } from "../../../src/types/index.ts";
+import type { BacklogTask as Task } from "../integrations/backlog.ts";
 
 /**
  * Jira metadata fields that can be added to tasks by the plugin

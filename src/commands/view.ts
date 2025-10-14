@@ -7,7 +7,7 @@ import { logger } from "../utils/logger.ts";
 // Import core formatter from backlog.md
 // In the real implementation, this would need to be properly imported from core
 // For now, we'll use a placeholder that would be replaced with the actual import
-import type { Task } from "../integrations/backlog.ts";
+import type { BacklogTask as Task } from "../integrations/backlog.ts";
 type CoreFormatter = (task: Task, content: string, filePath?: string) => string;
 
 /**
@@ -27,14 +27,16 @@ async function viewTask(
 		const content = `# Task Content\n\n${task.description || "No description"}`;
 
 		// Get Jira mapping if exists
-		const jiraKey = store.getMapping(taskId);
-		if (jiraKey) {
-			// Add Jira metadata to task
+		const mapping = store.getMapping(taskId);
+		if (mapping) {
+			// Note: In real implementation, these properties would be added via a wrapper type
+			// For now, we use type assertion to add Jira metadata dynamically
 			const syncState = store.getSyncState(taskId);
-			task.jiraKey = jiraKey;
-			task.jiraUrl = `https://your-domain.atlassian.net/browse/${jiraKey}`;
-			task.jiraLastSync = syncState?.lastSyncTime || "Never";
-			task.jiraSyncState = syncState?.state || "Unknown";
+			const taskWithJira = task as any;
+			taskWithJira.jiraKey = mapping.jiraKey;
+			taskWithJira.jiraUrl = `https://your-domain.atlassian.net/browse/${mapping.jiraKey}`;
+			taskWithJira.jiraLastSync = syncState?.lastSyncAt || "Never";
+			taskWithJira.jiraSyncState = syncState?.conflictState || "Unknown";
 		}
 
 		// Get core formatter

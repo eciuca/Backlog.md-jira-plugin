@@ -42,7 +42,7 @@ export interface OpLog {
 }
 
 export class SyncStore {
-	private db: Database;
+	private db: any; // Database instance (bun:sqlite or better-sqlite3)
 
 	constructor(dbPath?: string) {
 		const configDir = join(process.cwd(), ".backlog-jira");

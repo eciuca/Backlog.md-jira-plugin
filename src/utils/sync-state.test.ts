@@ -14,11 +14,11 @@ describe("sync-state", () => {
 
 		it("should return Unknown when only backlog snapshot exists", () => {
 			const backlogSnapshot: Snapshot = {
-				taskId: "task-1",
-				source: "backlog",
+				backlogId: "task-1",
+				side: "backlog",
 				hash: "baseHash",
 				payload: "{}",
-				createdAt: new Date().toISOString(),
+				updatedAt: new Date().toISOString(),
 			};
 
 			const result = classifySyncState("hash1", "hash2", backlogSnapshot, null);
@@ -28,11 +28,11 @@ describe("sync-state", () => {
 
 		it("should return Unknown when only jira snapshot exists", () => {
 			const jiraSnapshot: Snapshot = {
-				taskId: "task-1",
-				source: "jira",
+				backlogId: "task-1",
+				side: "jira",
 				hash: "baseHash",
 				payload: "{}",
-				createdAt: new Date().toISOString(),
+				updatedAt: new Date().toISOString(),
 			};
 
 			const result = classifySyncState("hash1", "hash2", null, jiraSnapshot);
@@ -44,19 +44,19 @@ describe("sync-state", () => {
 			const baseHash = "sameHash";
 
 			const backlogSnapshot: Snapshot = {
-				taskId: "task-1",
-				source: "backlog",
+				backlogId: "task-1",
+				side: "backlog",
 				hash: baseHash,
 				payload: "{}",
-				createdAt: new Date().toISOString(),
+				updatedAt: new Date().toISOString(),
 			};
 
 			const jiraSnapshot: Snapshot = {
-				taskId: "task-1",
-				source: "jira",
+				backlogId: "task-1",
+				side: "jira",
 				hash: baseHash,
 				payload: "{}",
-				createdAt: new Date().toISOString(),
+				updatedAt: new Date().toISOString(),
 			};
 
 			const result = classifySyncState(
@@ -78,19 +78,19 @@ describe("sync-state", () => {
 			const newBacklogHash = "changedBacklogHash";
 
 			const backlogSnapshot: Snapshot = {
-				taskId: "task-1",
-				source: "backlog",
+				backlogId: "task-1",
+				side: "backlog",
 				hash: baseHash,
 				payload: "{}",
-				createdAt: new Date().toISOString(),
+				updatedAt: new Date().toISOString(),
 			};
 
 			const jiraSnapshot: Snapshot = {
-				taskId: "task-1",
-				source: "jira",
+				backlogId: "task-1",
+				side: "jira",
 				hash: baseHash,
 				payload: "{}",
-				createdAt: new Date().toISOString(),
+				updatedAt: new Date().toISOString(),
 			};
 
 			const result = classifySyncState(
@@ -112,19 +112,19 @@ describe("sync-state", () => {
 			const newJiraHash = "changedJiraHash";
 
 			const backlogSnapshot: Snapshot = {
-				taskId: "task-1",
-				source: "backlog",
+				backlogId: "task-1",
+				side: "backlog",
 				hash: baseHash,
 				payload: "{}",
-				createdAt: new Date().toISOString(),
+				updatedAt: new Date().toISOString(),
 			};
 
 			const jiraSnapshot: Snapshot = {
-				taskId: "task-1",
-				source: "jira",
+				backlogId: "task-1",
+				side: "jira",
 				hash: baseHash,
 				payload: "{}",
-				createdAt: new Date().toISOString(),
+				updatedAt: new Date().toISOString(),
 			};
 
 			const result = classifySyncState(
@@ -147,19 +147,19 @@ describe("sync-state", () => {
 			const newJiraHash = "changedJiraHash";
 
 			const backlogSnapshot: Snapshot = {
-				taskId: "task-1",
-				source: "backlog",
+				backlogId: "task-1",
+				side: "backlog",
 				hash: baseHash,
 				payload: "{}",
-				createdAt: new Date().toISOString(),
+				updatedAt: new Date().toISOString(),
 			};
 
 			const jiraSnapshot: Snapshot = {
-				taskId: "task-1",
-				source: "jira",
+				backlogId: "task-1",
+				side: "jira",
 				hash: baseHash,
 				payload: "{}",
-				createdAt: new Date().toISOString(),
+				updatedAt: new Date().toISOString(),
 			};
 
 			const result = classifySyncState(
@@ -182,19 +182,19 @@ describe("sync-state", () => {
 			const currentHash = "current";
 
 			const backlogSnapshot: Snapshot = {
-				taskId: "task-1",
-				source: "backlog",
+				backlogId: "task-1",
+				side: "backlog",
 				hash: baseBacklogHash,
 				payload: "{}",
-				createdAt: new Date().toISOString(),
+				updatedAt: new Date().toISOString(),
 			};
 
 			const jiraSnapshot: Snapshot = {
-				taskId: "task-1",
-				source: "jira",
+				backlogId: "task-1",
+				side: "jira",
 				hash: baseJiraHash,
 				payload: "{}",
-				createdAt: new Date().toISOString(),
+				updatedAt: new Date().toISOString(),
 			};
 
 			// Both changed from different bases

@@ -16,7 +16,7 @@ import type { ConflictStrategy } from "./sync.ts";
 
 // Mock clients and store
 const mockBacklogClient = {
-	getTask: mock(() =>
+	getTask: mock((taskId: string) =>
 		Promise.resolve({
 			id: "task-1",
 			title: "Original Title",
@@ -27,29 +27,40 @@ const mockBacklogClient = {
 			labels: ["backend"],
 		}),
 	),
-	updateTask: mock(() => Promise.resolve()),
+	updateTask: mock((taskId: string, updates: any) => Promise.resolve()),
 };
 
 const mockJiraClient = {
-	getIssue: mock(() =>
+	getIssue: mock((issueKey: string) =>
 		Promise.resolve({
 			key: "PROJ-1",
+			id: "10001",
 			summary: "Original Title",
 			description: "Original description",
 			status: "To Do",
+			issueType: "Task",
 			assignee: "alice",
 			priority: "Medium",
 			labels: ["backend"],
+			created: "2025-01-01T00:00:00Z",
+			updated: "2025-01-01T00:00:00Z",
 		}),
 	),
-	updateIssue: mock(() => Promise.resolve()),
+	updateIssue: mock((issueKey: string, updates: any) => Promise.resolve()),
 };
 
 const mockStore = {
-	getMapping: mock(() => ({ taskId: "task-1", jiraKey: "PROJ-1" })),
+	getMapping: mock((backlogId: string) => ({
+		backlogId: "task-1",
+		jiraKey: "PROJ-1",
+		createdAt: new Date().toISOString(),
+		updatedAt: new Date().toISOString(),
+	})),
 	getAllMappings: mock(() => new Map([["task-1", "PROJ-1"]])),
-	getSnapshots: mock(() => ({
+	getSnapshots: mock((backlogId: string) => ({
 		backlog: {
+			backlogId: "task-1",
+			side: "backlog" as const,
 			hash: "originalBacklogHash",
 			payload: JSON.stringify({
 				id: "task-1",
@@ -60,11 +71,11 @@ const mockStore = {
 				priority: "medium",
 				labels: ["backend"],
 			}),
-			taskId: "task-1",
-			source: "backlog" as const,
-			createdAt: new Date("2025-01-01T00:00:00Z").toISOString(),
+			updatedAt: new Date("2025-01-01T00:00:00Z").toISOString(),
 		},
 		jira: {
+			backlogId: "task-1",
+			side: "jira" as const,
 			hash: "originalJiraHash",
 			payload: JSON.stringify({
 				key: "PROJ-1",
@@ -75,18 +86,20 @@ const mockStore = {
 				priority: "Medium",
 				labels: ["backend"],
 			}),
-			taskId: "task-1",
-			source: "jira" as const,
-			createdAt: new Date("2025-01-01T00:00:00Z").toISOString(),
+			updatedAt: new Date("2025-01-01T00:00:00Z").toISOString(),
 		},
 	})),
-	setSnapshot: mock(() => {}),
-	updateSyncState: mock(() => {}),
-	logOperation: mock(() => {}),
+	setSnapshot: mock(
+		(backlogId: string, side: string, hash: string, payload: unknown) => {},
+	),
+	updateSyncState: mock((backlogId: string, updates: any) => {}),
+	logOperation: mock(
+		(op: string, backlogId: string | null, jiraKey: string | null, outcome: string, details?: string) => {},
+	),
 	close: mock(() => {}),
 };
 
-const mockPush = mock(() =>
+const mockPush = mock((options: any) =>
 	Promise.resolve({
 		success: true,
 		pushed: ["task-1"],
@@ -94,7 +107,7 @@ const mockPush = mock(() =>
 		skipped: [],
 	}),
 );
-const mockPull = mock(() =>
+const mockPull = mock((options: any) =>
 	Promise.resolve({
 		success: true,
 		pulled: ["task-1"],
@@ -136,12 +149,16 @@ describe("concurrent edit conflict scenarios", () => {
 
 			const jiraIssue: JiraIssue = {
 				key: "PROJ-1",
+				id: "10001",
 				summary: "Updated by Jira User",
 				description: "Original description",
 				status: "To Do",
+				issueType: "Task",
 				assignee: "alice",
 				priority: "Medium",
 				labels: ["backend"],
+				created: "2025-01-01T00:00:00Z",
+				updated: "2025-01-01T00:00:00Z",
 			};
 
 			const baseBacklog = { title: "Original Title" };
@@ -169,12 +186,16 @@ describe("concurrent edit conflict scenarios", () => {
 
 			const jiraIssue: JiraIssue = {
 				key: "PROJ-1",
+				id: "10001",
 				summary: "Test Task",
 				description: "Jira user added different details",
 				status: "To Do",
+				issueType: "Task",
 				assignee: "alice",
 				priority: "Medium",
 				labels: ["backend"],
+				created: "2025-01-01T00:00:00Z",
+				updated: "2025-01-01T00:00:00Z",
 			};
 
 			const baseBacklog = { description: "Original description" };
@@ -201,12 +222,16 @@ describe("concurrent edit conflict scenarios", () => {
 
 			const jiraIssue: JiraIssue = {
 				key: "PROJ-1",
+				id: "10001",
 				summary: "Test Task",
 				description: "Description",
 				status: "Done",
+				issueType: "Task",
 				assignee: "alice",
 				priority: "Medium",
 				labels: ["backend"],
+				created: "2025-01-01T00:00:00Z",
+				updated: "2025-01-01T00:00:00Z",
 			};
 
 			const baseBacklog = { status: "To Do" };
@@ -233,12 +258,16 @@ describe("concurrent edit conflict scenarios", () => {
 
 			const jiraIssue: JiraIssue = {
 				key: "PROJ-1",
+				id: "10001",
 				summary: "Test Task",
 				description: "Description",
 				status: "To Do",
+				issueType: "Task",
 				assignee: "charlie",
 				priority: "Medium",
 				labels: ["backend"],
+				created: "2025-01-01T00:00:00Z",
+				updated: "2025-01-01T00:00:00Z",
 			};
 
 			const baseBacklog = { assignee: "alice" };
@@ -265,12 +294,16 @@ describe("concurrent edit conflict scenarios", () => {
 
 			const jiraIssue: JiraIssue = {
 				key: "PROJ-1",
+				id: "10001",
 				summary: "Test Task",
 				description: "Description",
 				status: "To Do",
+				issueType: "Task",
 				assignee: "alice",
 				priority: "Low",
 				labels: ["backend"],
+				created: "2025-01-01T00:00:00Z",
+				updated: "2025-01-01T00:00:00Z",
 			};
 
 			const baseBacklog = { priority: "medium" };
@@ -297,12 +330,16 @@ describe("concurrent edit conflict scenarios", () => {
 
 			const jiraIssue: JiraIssue = {
 				key: "PROJ-1",
+				id: "10001",
 				summary: "Test Task",
 				description: "Description",
 				status: "To Do",
+				issueType: "Task",
 				assignee: "alice",
 				priority: "Medium",
 				labels: ["frontend", "ui"],
+				created: "2025-01-01T00:00:00Z",
+				updated: "2025-01-01T00:00:00Z",
 			};
 
 			const baseBacklog = { labels: ["backend"] };
@@ -331,12 +368,16 @@ describe("concurrent edit conflict scenarios", () => {
 
 			const jiraIssue: JiraIssue = {
 				key: "PROJ-1",
+				id: "10001",
 				summary: "Updated Title - Jira",
 				description: "Updated description - Jira",
 				status: "Done",
+				issueType: "Task",
 				assignee: "charlie",
 				priority: "Low",
 				labels: ["frontend", "bug"],
+				created: "2025-01-01T00:00:00Z",
+				updated: "2025-01-01T00:00:00Z",
 			};
 
 			const baseBacklog = {
@@ -392,11 +433,13 @@ describe("concurrent edit conflict scenarios", () => {
 			// Setup: Both changed from baseline
 			const currentBacklogHash = "changedBacklogHash";
 			const currentJiraHash = "changedJiraHash";
-			const baseBacklogHash = "originalBacklogHash";
-			const baseJiraHash = "originalJiraHash";
+		const baseBacklogHash = "originalBacklogHash";
+		const baseJiraHash = "originalJiraHash";
 
-			const backlogChanged = currentBacklogHash !== baseBacklogHash;
-			const jiraChanged = currentJiraHash !== baseJiraHash;
+		// @ts-expect-error - Intentional string literal comparison for testing
+		const backlogChanged = currentBacklogHash !== baseBacklogHash;
+		// @ts-expect-error - Intentional string literal comparison for testing
+		const jiraChanged = currentJiraHash !== baseJiraHash;
 
 			// Both changed = Conflict
 			let state: "InSync" | "NeedsPush" | "NeedsPull" | "Conflict";
@@ -445,13 +488,16 @@ describe("concurrent edit conflict scenarios", () => {
 
 		it("should handle same-field concurrent edits", () => {
 			// Both users edited the same field with different values
-			const backlogValue = "Backlog's new value";
-			const jiraValue = "Jira's new value";
-			const baseValue = "Original value";
+		const backlogValue = "Backlog's new value";
+		const jiraValue = "Jira's new value";
+		const baseValue = "Original value";
 
-			const backlogChanged = backlogValue !== baseValue;
-			const jiraChanged = jiraValue !== baseValue;
-			const valuesDiffer = backlogValue !== jiraValue;
+		// @ts-expect-error - Intentional string literal comparison for testing
+		const backlogChanged = backlogValue !== baseValue;
+		// @ts-expect-error - Intentional string literal comparison for testing
+		const jiraChanged = jiraValue !== baseValue;
+		// @ts-expect-error - Intentional string literal comparison for testing
+		const valuesDiffer = backlogValue !== jiraValue;
 
 			// This is a genuine conflict: both changed, and they differ
 			expect(backlogChanged).toBe(true);
@@ -461,12 +507,14 @@ describe("concurrent edit conflict scenarios", () => {
 
 		it("should not conflict when both sides made identical changes", () => {
 			// Edge case: Both users made the exact same change independently
-			const backlogValue = "Same new value";
-			const jiraValue = "Same new value";
-			const baseValue = "Original value";
+		const backlogValue = "Same new value";
+		const jiraValue = "Same new value";
+		const baseValue = "Original value";
 
-			const backlogChanged = backlogValue !== baseValue;
-			const jiraChanged = jiraValue !== baseValue;
+		// @ts-expect-error - Intentional string literal comparison for testing
+		const backlogChanged = backlogValue !== baseValue;
+		// @ts-expect-error - Intentional string literal comparison for testing
+		const jiraChanged = jiraValue !== baseValue;
 			const valuesMatch = backlogValue === jiraValue;
 
 			// Both changed, but to the same value - can auto-resolve
@@ -615,12 +663,16 @@ describe("concurrent edit conflict scenarios", () => {
 
 			const issue: JiraIssue = {
 				key: "PROJ-1",
+				id: "10001",
 				summary: "Synced Title",
 				description: "Synced description",
 				status: "In Progress",
+				issueType: "Task",
 				assignee: "alice",
 				priority: "High",
 				labels: ["backend"],
+				created: "2025-01-01T00:00:00Z",
+				updated: "2025-01-01T00:00:00Z",
 			};
 
 			const syncedHash = "newSyncedHash";
@@ -741,11 +793,11 @@ describe("concurrent edit conflict scenarios", () => {
 			// Simulate reading snapshots while they're being updated
 			const snapshots = mockStore.getSnapshots("task-1");
 
-			// Should get consistent state
-			expect(snapshots.backlog).toBeDefined();
-			expect(snapshots.jira).toBeDefined();
-			expect(snapshots.backlog?.taskId).toBe("task-1");
-			expect(snapshots.jira?.taskId).toBe("task-1");
+		// Should get consistent state
+		expect(snapshots.backlog).toBeDefined();
+		expect(snapshots.jira).toBeDefined();
+		expect(snapshots.backlog?.backlogId).toBe("task-1");
+		expect(snapshots.jira?.backlogId).toBe("task-1");
 		});
 
 		it("should maintain consistency across multiple task syncs", async () => {

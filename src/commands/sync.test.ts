@@ -3,7 +3,7 @@ import type { ConflictStrategy, SyncOptions } from "./sync.ts";
 
 // Mock modules
 const mockBacklogClient = {
-	getTask: mock(() =>
+	getTask: mock((taskId: string) =>
 		Promise.resolve({
 			id: "task-1",
 			title: "Test Task",
@@ -14,50 +14,63 @@ const mockBacklogClient = {
 			labels: ["backend"],
 		}),
 	),
-	updateTask: mock(() => Promise.resolve()),
+	updateTask: mock((taskId: string, updates: any) => Promise.resolve()),
 };
 
 const mockJiraClient = {
-	getIssue: mock(() =>
+	getIssue: mock((issueKey: string) =>
 		Promise.resolve({
 			key: "PROJ-1",
+			id: "10001",
 			summary: "Test Task",
 			description: "Test description",
 			status: "To Do",
+			issueType: "Task",
 			assignee: "alice",
 			priority: "high",
 			labels: ["backend"],
+			created: "2025-01-01T00:00:00Z",
+			updated: "2025-01-01T00:00:00Z",
 		}),
 	),
-	updateIssue: mock(() => Promise.resolve()),
+	updateIssue: mock((issueKey: string, updates: any) => Promise.resolve()),
 };
 
 const mockStore = {
-	getMapping: mock(() => ({ taskId: "task-1", jiraKey: "PROJ-1" })),
+	getMapping: mock((backlogId: string) => ({
+		backlogId: "task-1",
+		jiraKey: "PROJ-1",
+		createdAt: new Date().toISOString(),
+		updatedAt: new Date().toISOString(),
+	} as any)),
 	getAllMappings: mock(() => new Map([["task-1", "PROJ-1"]])),
-	getSnapshots: mock(() => ({
+	getSnapshots: mock((backlogId: string) => ({
 		backlog: {
+			backlogId: "task-1",
+			side: "backlog" as const,
 			hash: "baseHash",
 			payload: "{}",
-			taskId: "task-1",
-			source: "backlog",
-			createdAt: new Date().toISOString(),
+			updatedAt: new Date().toISOString(),
 		},
 		jira: {
+			backlogId: "task-1",
+			side: "jira" as const,
 			hash: "baseHash",
 			payload: "{}",
-			taskId: "task-1",
-			source: "jira",
-			createdAt: new Date().toISOString(),
+			updatedAt: new Date().toISOString(),
 		},
 	})),
-	setSnapshot: mock(() => {}),
-	updateSyncState: mock(() => {}),
-	logOperation: mock(() => {}),
+	setSnapshot: mock(
+		(backlogId: string, side: string, hash: string, payload: unknown) => {},
+	),
+	updateSyncState: mock((backlogId: string, updates: any) => {}),
+	logOperation: mock(
+		(op: string, backlogId: string | null, jiraKey: string | null, outcome: string, details?: string) => {},
+	),
 	close: mock(() => {}),
 };
 
-const mockPush = mock(() =>
+const mockPush = mock((options: any) =>
 	Promise.resolve({
 		success: true,
 		pushed: ["task-1"],
@@ -65,7 +78,7 @@ const mockPush = mock(() =>
 		skipped: [],
 	}),
 );
-const mockPull = mock(() =>
+const mockPull = mock((options: any) =>
 	Promise.resolve({
 		success: true,
 		pulled: ["task-1"],

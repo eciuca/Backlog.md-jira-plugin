@@ -31,8 +31,20 @@ describe("Conflict Resolver Utilities", () => {
 				baseValue: "To Do",
 			},
 		],
-		backlogTask: {} as Record<string, unknown>,
-		jiraIssue: {} as Record<string, unknown>,
+		backlogTask: {
+			id: "task-42",
+			title: "New feature",
+			status: "In Progress",
+		} as any,
+		jiraIssue: {
+			key: "PROJ-123",
+			id: "10123",
+			summary: "Updated feature",
+			status: "Done",
+			issueType: "Task",
+			created: "2025-01-01T00:00:00Z",
+			updated: "2025-01-01T00:00:00Z",
+		} as any,
 		baseBacklog: {},
 		baseJira: {},
 	};

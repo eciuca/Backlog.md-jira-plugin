@@ -3,61 +3,77 @@ import type { PullOptions } from "./pull.ts";
 
 // Mock clients and store
 const mockBacklogClient = {
-	getTask: mock(() =>
+	getTask: mock((taskId: string) =>
 		Promise.resolve({
 			id: "task-1",
-			title: "Old Task",
-			description: "Old description",
+			title: "Test Task",
+			description: "Test description",
 			status: "To Do",
 			assignee: "alice",
 			priority: "high",
 			labels: ["backend"],
 		}),
 	),
-	updateTask: mock(() => Promise.resolve()),
+	updateTask: mock((taskId: string, updates: any) => Promise.resolve()),
 };
 
 const mockJiraClient = {
-	getIssue: mock(() =>
+	getIssue: mock((issueKey: string) =>
 		Promise.resolve({
 			key: "PROJ-1",
 			id: "10001",
 			summary: "Updated Task",
 			description: "Updated description",
 			status: "In Progress",
+			issueType: "Task",
 			assignee: "bob",
 			priority: "medium",
 			labels: ["frontend"],
+			created: "2025-01-01T00:00:00Z",
+			updated: "2025-01-01T00:00:00Z",
 		}),
 	),
 };
 
 const mockStore = {
-	getMapping: mock(() => ({ taskId: "task-1", jiraKey: "PROJ-1" })),
+	getMapping: mock((backlogId: string) => ({
+		backlogId: "task-1",
+		jiraKey: "PROJ-1",
+		createdAt: new Date().toISOString(),
+		updatedAt: new Date().toISOString(),
+	} as any)),
 	getAllMappings: mock(() => new Map([["task-1", "PROJ-1"]])),
-	getSnapshots: mock(() => ({
+	getSnapshots: mock((backlogId: string) => ({
 		backlog: {
+			backlogId: "task-1",
+			side: "backlog" as const,
 			hash: "baseHash",
 			payload: "{}",
-			taskId: "task-1",
-			source: "backlog",
-			createdAt: new Date().toISOString(),
+			updatedAt: new Date().toISOString(),
 		},
 		jira: {
+			backlogId: "task-1",
+			side: "jira" as const,
 			hash: "baseHash",
 			payload: "{}",
-			taskId: "task-1",
-			source: "jira",
-			createdAt: new Date().toISOString(),
+			updatedAt: new Date().toISOString(),
 		},
 	})),
-	setSnapshot: mock(() => {}),
-	updateSyncState: mock(() => {}),
-	logOperation: mock(() => {}),
+	setSnapshot: mock(
+		(backlogId: string, side: string, hash: string, payload: unknown) => {},
+	),
+	updateSyncState: mock((backlogId: string, updates: any) => {}),
+	logOperation: mock(
+		(op: string, backlogId: string | null, jiraKey: string | null, outcome: string, details?: string) => {},
+	),
 	close: mock(() => {}),
 };
 
-const mockClassifySyncState = mock(() => ({ state: "NeedsPull" }));
+const mockClassifySyncState = mock(
+	(backlogHash: string, jiraHash: string, baseBacklogHash: string, baseJiraHash: string) => ({
+		state: "NeedsPull",
+	}),
+);
 
 describe("pull command", () => {
 	beforeEach(() => {
@@ -82,15 +98,19 @@ describe("pull command", () => {
 			// - No direct file writes
 			// - BacklogClient.updateTask is called
 
-			const jiraIssue = {
-				key: "PROJ-1",
-				summary: "New Title from Jira",
-				description: "New description from Jira",
-				status: "In Progress",
-				assignee: "bob",
-				priority: "medium",
-				labels: ["frontend", "urgent"],
-			};
+		const jiraIssue = {
+			key: "PROJ-1",
+			id: "10001",
+			summary: "New Title from Jira",
+			description: "New description from Jira",
+			status: "In Progress",
+			issueType: "Task",
+			assignee: "bob",
+			priority: "medium",
+			labels: ["frontend", "urgent"],
+			created: "2025-01-01T00:00:00Z",
+			updated: "2025-01-01T00:00:00Z",
+		};
 
 			const backlogTask = {
 				id: "task-1",
@@ -139,15 +159,19 @@ describe("pull command", () => {
 
 		it("should only update changed fields", async () => {
 			// Test selective updates
-			const jiraIssue = {
-				key: "PROJ-1",
-				summary: "Same Title",
-				description: "New description only", // Only this changed
-				status: "To Do",
-				assignee: "alice",
-				priority: "high",
-				labels: ["backend"],
-			};
+		const jiraIssue = {
+			key: "PROJ-1",
+			id: "10001",
+			summary: "Same Title",
+			description: "New description only", // Only this changed
+			status: "To Do",
+			issueType: "Task",
+			assignee: "alice",
+			priority: "high",
+			labels: ["backend"],
+			created: "2025-01-01T00:00:00Z",
+			updated: "2025-01-01T00:00:00Z",
+		};
 
 			const backlogTask = {
 				id: "task-1",
@@ -221,30 +245,26 @@ describe("pull command", () => {
 			const jiraHash = "changedJiraHash";
 			const baseHash = "originalHash";
 
-			mockStore.getSnapshots.mockReturnValue({
-				backlog: {
-					hash: baseHash,
-					payload: "{}",
-					taskId: "task-1",
-					source: "backlog",
-					createdAt: new Date().toISOString(),
-				},
-				jira: {
-					hash: baseHash,
-					payload: "{}",
-					taskId: "task-1",
-					source: "jira",
-					createdAt: new Date().toISOString(),
-				},
-			});
+		mockStore.getSnapshots.mockReturnValue({
+			backlog: {
+				backlogId: "task-1",
+				side: "backlog" as const,
+				hash: baseHash,
+				payload: "{}",
+				updatedAt: new Date().toISOString(),
+			},
+			jira: {
+				backlogId: "task-1",
+				side: "jira" as const,
+				hash: baseHash,
+				payload: "{}",
+				updatedAt: new Date().toISOString(),
+			},
+		});
 
-			mockClassifySyncState.mockReturnValue({
-				state: "Conflict",
-				backlogHash,
-				jiraHash,
-				baseBacklogHash: baseHash,
-				baseJiraHash: baseHash,
-			});
+		mockClassifySyncState.mockReturnValue({
+			state: "Conflict",
+		});
 
 			const result = mockClassifySyncState(
 				backlogHash,
