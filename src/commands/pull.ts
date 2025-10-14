@@ -86,9 +86,11 @@ export async function pull(options: PullOptions = {}): Promise<PullResult> {
 		);
 	} finally {
 		store.close();
+		await jira.close();
 	}
 
 	logger.info({ result }, "Pull operation completed");
+	process.exit(0);
 	return result;
 }
 

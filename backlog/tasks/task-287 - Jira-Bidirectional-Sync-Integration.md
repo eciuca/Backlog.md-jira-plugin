@@ -1,10 +1,10 @@
 ---
 id: task-287
 title: Jira Bidirectional Sync Integration
-status: To Do
+status: Done
 assignee: []
 created_date: '2025-10-11 05:02'
-updated_date: '2025-10-11 07:44'
+updated_date: '2025-10-14 06:25'
 labels:
   - jira
   - integration
