@@ -1,3 +1,5 @@
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import { BacklogClient, type BacklogTask } from "../integrations/backlog.ts";
 import { JiraClient, type JiraIssue } from "../integrations/jira.ts";
 import { SyncStore } from "../state/store.ts";
@@ -15,6 +17,8 @@ import { classifySyncState } from "../utils/sync-state.ts";
 export interface PullOptions {
 	taskIds?: string[];
 	all?: boolean;
+	import?: boolean;
+	jql?: string;
 	force?: boolean;
 	dryRun?: boolean;
 }
@@ -22,6 +26,7 @@ export interface PullOptions {
 export interface PullResult {
 	success: boolean;
 	pulled: string[];
+	imported: string[];
 	failed: Array<{ taskId: string; error: string }>;
 	skipped: string[];
 }
@@ -40,42 +45,79 @@ export async function pull(options: PullOptions = {}): Promise<PullResult> {
 	const result: PullResult = {
 		success: true,
 		pulled: [],
+		imported: [],
 		failed: [],
 		skipped: [],
 	};
 
 	try {
-		// Get list of tasks to pull
-		const taskIds = await getTaskIds(options, backlog, jira, store);
+		// Get list of tasks to pull and issues to import
+		const { mapped, unmapped } = await getTaskIds(options, backlog, jira, store);
 
-		logger.info({ count: taskIds.length }, "Tasks to process");
+		logger.info(
+			{ mappedCount: mapped.length, unmappedCount: unmapped.length },
+			"Tasks to process",
+		);
 
-		// Process in parallel batches for better performance (max 10 concurrent)
-		const batchSize = 10;
-		for (let i = 0; i < taskIds.length; i += batchSize) {
-			const batch = taskIds.slice(i, i + batchSize);
-			const promises = batch.map(async (taskId) => {
-				try {
-					await pullTask(taskId, {
-						store,
-						backlog,
-						jira,
-						force: options.force || false,
-						dryRun: options.dryRun || false,
-					});
+		// First, import unmapped issues if in import mode
+		if (options.import && unmapped.length > 0) {
+			logger.info({ count: unmapped.length }, "Importing unmapped issues");
+			const batchSize = 10;
+			for (let i = 0; i < unmapped.length; i += batchSize) {
+				const batch = unmapped.slice(i, i + batchSize);
+				const promises = batch.map(async (jiraKey) => {
+					try {
+						const taskId = await importJiraIssue(jiraKey, {
+							store,
+							backlog,
+							jira,
+							dryRun: options.dryRun || false,
+						});
 
-					result.pulled.push(taskId);
-					logger.info({ taskId }, "Successfully pulled task");
-				} catch (error) {
-					const errorMsg =
-						error instanceof Error ? error.message : String(error);
-					result.failed.push({ taskId, error: errorMsg });
-					logger.error({ taskId, error: errorMsg }, "Failed to pull task");
-					result.success = false;
-				}
-			});
+						result.imported.push(taskId);
+						logger.info({ taskId, jiraKey }, "Successfully imported issue");
+					} catch (error) {
+						const errorMsg =
+							error instanceof Error ? error.message : String(error);
+						result.failed.push({ taskId: jiraKey, error: errorMsg });
+						logger.error({ jiraKey, error: errorMsg }, "Failed to import issue");
+						result.success = false;
+					}
+				});
 
-			await Promise.all(promises);
+				await Promise.all(promises);
+			}
+		}
+
+		// Then, pull mapped tasks
+		if (mapped.length > 0) {
+			logger.info({ count: mapped.length }, "Pulling mapped tasks");
+			const batchSize = 10;
+			for (let i = 0; i < mapped.length; i += batchSize) {
+				const batch = mapped.slice(i, i + batchSize);
+				const promises = batch.map(async (taskId) => {
+					try {
+						await pullTask(taskId, {
+							store,
+							backlog,
+							jira,
+							force: options.force || false,
+							dryRun: options.dryRun || false,
+						});
+
+						result.pulled.push(taskId);
+						logger.info({ taskId }, "Successfully pulled task");
+					} catch (error) {
+						const errorMsg =
+							error instanceof Error ? error.message : String(error);
+						result.failed.push({ taskId, error: errorMsg });
+						logger.error({ taskId, error: errorMsg }, "Failed to pull task");
+						result.success = false;
+					}
+				});
+
+				await Promise.all(promises);
+			}
 		}
 
 		store.logOperation(
@@ -97,21 +139,27 @@ export async function pull(options: PullOptions = {}): Promise<PullResult> {
 
 /**
  * Get list of task IDs to pull
+ * Returns { mapped: taskIds, unmapped: jiraKeys }
  */
 async function getTaskIds(
 	options: PullOptions,
 	backlog: BacklogClient,
 	jira: JiraClient,
 	store: SyncStore,
-): Promise<string[]> {
+): Promise<{ mapped: string[]; unmapped: string[] }> {
 	if (options.taskIds && options.taskIds.length > 0) {
-		return options.taskIds;
+		return { mapped: options.taskIds, unmapped: [] };
 	}
 
 	if (options.all) {
 		// Get all tasks that have mappings
 		const mappings = store.getAllMappings();
-		return Array.from(mappings.keys());
+		return { mapped: Array.from(mappings.keys()), unmapped: [] };
+	}
+
+	// Import mode: fetch Jira issues via JQL
+	if (options.import) {
+		return await getIssuesForImport(options, jira, store);
 	}
 
 	// Default: get tasks that need pull (changed on Jira side)
@@ -142,7 +190,72 @@ async function getTaskIds(
 		}
 	}
 
-	return needsPull;
+	return { mapped: needsPull, unmapped: [] };
+}
+
+/**
+ * Get Jira issues for import using JQL filter
+ */
+async function getIssuesForImport(
+	options: PullOptions,
+	jira: JiraClient,
+	store: SyncStore,
+): Promise<{ mapped: string[]; unmapped: string[] }> {
+	// Get JQL from options or config
+	let jql = options.jql;
+	
+	if (!jql) {
+		// Try to load from config
+		try {
+			const configPath = join(process.cwd(), ".backlog-jira", "config.json");
+			if (existsSync(configPath)) {
+				const config = JSON.parse(readFileSync(configPath, "utf-8"));
+				jql = config.jira?.jqlFilter;
+			}
+		} catch (error) {
+			logger.warn({ error }, "Failed to load JQL from config");
+		}
+	}
+	
+	if (!jql) {
+		// Default JQL: project = PROJECTKEY
+		const projectKey = process.env.JIRA_PROJECT;
+		if (projectKey) {
+			jql = `project = ${projectKey} ORDER BY created DESC`;
+		} else {
+			throw new Error(
+				"No JQL filter provided. Use --jql option or configure jqlFilter in config.json",
+			);
+		}
+	}
+	
+	logger.info({ jql }, "Fetching Jira issues for import");
+	
+	// Search for issues
+	const result = await jira.searchIssues(jql, { maxResults: 50 });
+	logger.info({ count: result.issues.length, total: result.total }, "Found Jira issues");
+	
+	// Separate mapped and unmapped issues
+	const mapped: string[] = [];
+	const unmapped: string[] = [];
+	
+	for (const issue of result.issues) {
+		const mapping = store.getMappingByJiraKey(issue.key);
+		if (mapping) {
+			// Already mapped - will be pulled
+			mapped.push(mapping.backlogId);
+		} else {
+			// Unmapped - will be imported
+			unmapped.push(issue.key);
+		}
+	}
+	
+	logger.info(
+		{ mappedCount: mapped.length, unmappedCount: unmapped.length },
+		"Categorized issues for import",
+	);
+	
+	return { mapped, unmapped };
 }
 
 /**
@@ -417,4 +530,124 @@ function syncAcceptanceCriteria(
 	);
 
 	return { addAc, removeAc, checkAc, uncheckAc };
+}
+
+/**
+ * Import a Jira issue as a new Backlog task
+ * Creates task, maps it, and syncs initial data
+ */
+async function importJiraIssue(
+	jiraKey: string,
+	context: {
+		store: SyncStore;
+		backlog: BacklogClient;
+		jira: JiraClient;
+		dryRun: boolean;
+	},
+): Promise<string> {
+	const { store, backlog, jira, dryRun } = context;
+
+	// Get Jira issue
+	const issue = await jira.getIssue(jiraKey);
+	logger.info({ jiraKey, summary: issue.summary }, "Importing Jira issue");
+
+	// Extract and normalize acceptance criteria from description
+	const normalized = normalizeJiraIssue(issue);
+	const acceptanceCriteria = normalized.acceptanceCriteria;
+	const cleanDescription = stripAcceptanceCriteriaFromDescription(
+		issue.description || "",
+	);
+
+	// Extract project key for status mapping
+	const projectKey = issue.key.split("-")[0];
+
+	if (dryRun) {
+		logger.info(
+			{
+				jiraKey,
+				title: issue.summary,
+				status: mapJiraStatusToBacklog(issue.status, projectKey),
+				assignee: issue.assignee,
+				acCount: acceptanceCriteria.length,
+			},
+			"DRY RUN: Would import Jira issue",
+		);
+		return `dry-run-${jiraKey}`;
+	}
+
+	// Create Backlog task
+	const taskId = await backlog.createTask({
+		title: issue.summary,
+		description: cleanDescription,
+		status: mapJiraStatusToBacklog(issue.status, projectKey),
+		assignee: issue.assignee,
+		labels: issue.labels,
+		priority: issue.priority,
+		// Add acceptance criteria during creation
+		ac: acceptanceCriteria.map((ac) => ac.text),
+	});
+
+	logger.info({ taskId, jiraKey }, "Created Backlog task from Jira issue");
+
+	// If AC have checked states, update them
+	const checkedIndices = acceptanceCriteria
+		.map((ac, idx) => (ac.checked ? idx + 1 : -1))
+		.filter((idx) => idx > 0);
+
+	if (checkedIndices.length > 0) {
+		await backlog.updateTask(taskId, {
+			checkAc: checkedIndices,
+		});
+		logger.debug(
+			{ taskId, checkedIndices },
+			"Updated acceptance criteria checked states",
+		);
+	}
+
+	// Create mapping
+	store.addMapping(taskId, jiraKey);
+	logger.info({ taskId, jiraKey }, "Created mapping");
+
+	// Set initial snapshots
+	const task = await backlog.getTask(taskId);
+	const syncedHash = computeHash(normalizeJiraIssue(issue));
+	store.setSnapshot(
+		taskId,
+		"backlog",
+		syncedHash,
+		normalizeBacklogTask(task),
+	);
+	store.setSnapshot(taskId, "jira", syncedHash, normalizeJiraIssue(issue));
+
+	store.updateSyncState(taskId, {
+		lastSyncAt: new Date().toISOString(),
+	});
+
+	// Update frontmatter with Jira metadata
+	try {
+		const filePath = getTaskFilePath(taskId);
+		const jiraUrl = process.env.JIRA_URL
+			? `${process.env.JIRA_URL}/browse/${jiraKey}`
+			: undefined;
+
+		updateJiraMetadata(filePath, {
+			jiraKey,
+			jiraUrl,
+			jiraLastSync: new Date().toISOString(),
+			jiraSyncState: "InSync",
+		});
+
+		logger.debug(
+			{ taskId, jiraKey },
+			"Updated frontmatter with Jira metadata",
+		);
+	} catch (error) {
+		logger.error(
+			{ taskId, error },
+			"Failed to update frontmatter, but import was successful",
+		);
+	}
+
+	logger.info({ taskId, jiraKey }, "Successfully imported Jira issue");
+	return taskId;
 }

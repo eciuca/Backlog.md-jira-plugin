@@ -337,7 +337,26 @@ backlog-jira map
 backlog-jira sync task-123
 ```
 
-#### Workflow 3: Bulk Operations
+#### Workflow 3: Importing Existing Jira Project
+
+```bash
+# Configure JQL filter in .backlog-jira/config.json
+# Or use command-line JQL:
+
+# Preview what would be imported
+backlog-jira pull --import --jql "project = MYPROJ" --dry-run
+
+# Import all issues from project
+backlog-jira pull --import --jql "project = MYPROJ"
+
+# Import only open issues
+backlog-jira pull --import --jql "project = MYPROJ AND status = 'Open'"
+
+# Import issues from multiple projects
+backlog-jira pull --import --jql "project IN (PROJ1, PROJ2) AND created >= -30d"
+```
+
+#### Workflow 4: Bulk Operations
 
 ```bash
 # Sync all mapped tasks
@@ -349,9 +368,12 @@ backlog-jira push --all
 
 # Pull all updates from Jira
 backlog-jira pull --all
+
+# Import new issues and update existing ones
+backlog-jira pull --import
 ```
 
-#### Workflow 4: Handling Conflicts
+#### Workflow 5: Handling Conflicts
 
 ```bash
 # Sync with automatic conflict resolution
@@ -496,6 +518,38 @@ backlog-jira pull task-123 --force
 - Assignee → Assignee
 - Labels → Labels
 - Acceptance Criteria → Parsed from description
+
+#### Import Mode
+
+Import unmapped Jira issues as new Backlog tasks:
+
+```bash
+# Import issues using JQL filter from config
+backlog-jira pull --import
+
+# Import with custom JQL filter
+backlog-jira pull --import --jql "project = PROJ AND status = 'Open'"
+
+# Preview import without creating tasks
+backlog-jira pull --import --dry-run
+
+# Import and force-update any conflicts
+backlog-jira pull --import --force
+```
+
+**Import behavior:**
+- Fetches Jira issues using JQL filter (from `--jql` flag, config.json, or JIRA_PROJECT env var)
+- Creates new Backlog tasks for unmapped issues
+- Automatically creates mappings
+- Syncs all Jira fields (title, description, status, assignee, labels, priority)
+- Extracts and converts Acceptance Criteria from Jira description
+- Also pulls updates for already-mapped tasks found in the JQL results
+- Without `--import` flag, only pulls already-mapped tasks (preserves existing behavior)
+
+**JQL Configuration Priority:**
+1. `--jql` command-line option (highest priority)
+2. `jqlFilter` in `.backlog-jira/config.json`
+3. Default: `project = JIRA_PROJECT ORDER BY created DESC`
 
 ### `backlog-jira sync [taskIds...]`
 

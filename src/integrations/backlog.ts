@@ -223,6 +223,65 @@ export class BacklogClient {
 	}
 
 	/**
+	 * Create a new task
+	 * Returns the created task ID
+	 */
+	async createTask(options: {
+		title: string;
+		description?: string;
+		status?: string;
+		assignee?: string;
+		labels?: string[];
+		priority?: string;
+		ac?: string[];
+	}): Promise<string> {
+		const args = ["task", "create", options.title];
+
+		if (options.description) {
+			args.push("-d", this.escapeMultiline(options.description));
+		}
+		if (options.status) {
+			args.push("-s", options.status);
+		}
+		if (options.assignee) {
+			args.push("-a", options.assignee);
+		}
+		if (options.labels && options.labels.length > 0) {
+			args.push("-l", options.labels.join(","));
+		}
+		if (options.priority) {
+			args.push("--priority", options.priority);
+		}
+		if (options.ac) {
+			for (const ac of options.ac) {
+				args.push("--ac", ac);
+			}
+		}
+
+		try {
+			const output = await this.execute(args);
+			// Parse output to extract task ID
+			// Expected format: "Created task-123" or similar
+			const match = output.match(/task-(\d+)/);
+			if (match) {
+				const taskId = `task-${match[1]}`;
+				logger.info({ taskId, title: options.title }, "Task created successfully");
+				return taskId;
+			}
+			// If no match, try to parse the entire output as task ID
+			const trimmed = output.trim();
+			if (trimmed.startsWith("task-")) {
+				logger.info({ taskId: trimmed, title: options.title }, "Task created successfully");
+				return trimmed;
+			}
+			throw new Error(`Failed to parse task ID from output: ${output}`);
+		} catch (error) {
+			logger.error({ error, options }, "Failed to create task");
+			throw error;
+		}
+	}
+
+	/**
 	 * Parse task list output from --plain format
 	 */
 	private parseTaskList(output: string): BacklogTaskListItem[] {

@@ -124,6 +124,8 @@ program
 	.command("pull [taskIds...]")
 	.description("Pull Jira changes to Backlog")
 	.option("--all", "Pull all mapped tasks")
+	.option("--import", "Import unmapped Jira issues as new Backlog tasks")
+	.option("--jql <jql>", "JQL filter for importing issues (requires --import)")
 	.option("--force", "Force pull even if conflicts detected")
 	.option("--dry-run", "Show what would be pulled without making changes")
 	.action(async (taskIds, options) => {
@@ -131,11 +133,16 @@ program
 			const result = await pull({
 				taskIds: taskIds && taskIds.length > 0 ? taskIds : undefined,
 				all: options.all,
+				import: options.import,
+				jql: options.jql,
 				force: options.force,
 				dryRun: options.dryRun,
 			});
 			console.log("\nPull Results:");
 			console.log(`  Pulled: ${result.pulled.length}`);
+			if (result.imported.length > 0) {
+				console.log(`  Imported: ${result.imported.length}`);
+			}
 			console.log(`  Failed: ${result.failed.length}`);
 			console.log(`  Skipped: ${result.skipped.length}`);
 			if (result.failed.length > 0) {
