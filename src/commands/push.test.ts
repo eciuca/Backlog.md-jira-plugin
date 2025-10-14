@@ -34,7 +34,12 @@ const mockJiraClient = {
 		}),
 	),
 	createIssue: mock(
-		(project: string, issueType: string, summary: string, fields: any) =>
+		(
+			project: string,
+			issueType: string,
+			summary: string,
+			fields: Record<string, unknown>,
+		) =>
 			Promise.resolve({
 				key: "PROJ-2",
 				id: "10002",
@@ -46,24 +51,55 @@ const mockJiraClient = {
 				updated: "2025-01-01T00:00:00Z",
 			}),
 	),
-	updateIssue: mock((issueKey: string, updates: any) => Promise.resolve()),
+	updateIssue: mock((issueKey: string, updates: Record<string, unknown>) =>
+		Promise.resolve(),
+	),
 	transitionIssue: mock((issueKey: string, statusName: string) =>
 		Promise.resolve(),
 	),
 };
 
 const mockStore = {
-	getMapping: mock((backlogId: string) => null as any),
+	getMapping: mock(
+		(backlogId: string) =>
+			null as null | {
+				backlogId: string;
+				jiraKey: string;
+				createdAt: string;
+				updatedAt: string;
+			},
+	),
 	addMapping: mock((backlogId: string, jiraKey: string) => {}),
 	getAllMappings: mock(() => new Map()),
 	getSnapshots: mock((backlogId: string) => ({
-		backlog: null as any,
-		jira: null as any,
+		backlog: null as null | {
+			backlogId: string;
+			side: string;
+			hash: string;
+			payload: string;
+			updatedAt: string;
+		},
+		jira: null as null | {
+			backlogId: string;
+			side: string;
+			hash: string;
+			payload: string;
+			updatedAt: string;
+		},
 	})),
 	setSnapshot: mock(
 		(backlogId: string, side: string, hash: string, payload: unknown) => {},
 	),
-	updateSyncState: mock((backlogId: string, updates: any) => {}),
+	updateSyncState: mock(
+		(
+			backlogId: string,
+			updates: Partial<{
+				lastSyncAt: string | null;
+				conflictState: string | null;
+				strategy: string | null;
+			}>,
+		) => {},
+	),
 	logOperation: mock(
 		(
 			op: string,

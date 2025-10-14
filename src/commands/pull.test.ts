@@ -14,7 +14,9 @@ const mockBacklogClient = {
 			labels: ["backend"],
 		}),
 	),
-	updateTask: mock((taskId: string, updates: any) => Promise.resolve()),
+	updateTask: mock((taskId: string, updates: Record<string, unknown>) =>
+		Promise.resolve(),
+	),
 };
 
 const mockJiraClient = {
@@ -43,7 +45,13 @@ const mockStore = {
 				jiraKey: "PROJ-1",
 				createdAt: new Date().toISOString(),
 				updatedAt: new Date().toISOString(),
-			}) as any,
+			}) as {
+				backlogId: string;
+				side: string;
+				hash: string;
+				payload: string;
+				updatedAt: string;
+			},
 	),
 	getAllMappings: mock(() => new Map([["task-1", "PROJ-1"]])),
 	getSnapshots: mock((backlogId: string) => ({
@@ -65,7 +73,16 @@ const mockStore = {
 	setSnapshot: mock(
 		(backlogId: string, side: string, hash: string, payload: unknown) => {},
 	),
-	updateSyncState: mock((backlogId: string, updates: any) => {}),
+	updateSyncState: mock(
+		(
+			backlogId: string,
+			updates: Partial<{
+				lastSyncAt: string | null;
+				conflictState: string | null;
+				strategy: string | null;
+			}>,
+		) => {},
+	),
 	logOperation: mock(
 		(
 			op: string,

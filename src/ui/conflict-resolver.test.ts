@@ -35,7 +35,7 @@ describe("Conflict Resolver Utilities", () => {
 			id: "task-42",
 			title: "New feature",
 			status: "In Progress",
-		} as any,
+		} as { id: string; title: string; status: string },
 		jiraIssue: {
 			key: "PROJ-123",
 			id: "10123",
@@ -44,7 +44,15 @@ describe("Conflict Resolver Utilities", () => {
 			issueType: "Task",
 			created: "2025-01-01T00:00:00Z",
 			updated: "2025-01-01T00:00:00Z",
-		} as any,
+		} as {
+			key: string;
+			id: string;
+			summary: string;
+			status: string;
+			issueType: string;
+			created: string;
+			updated: string;
+		},
 		baseBacklog: {},
 		baseJira: {},
 	};

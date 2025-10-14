@@ -41,8 +41,18 @@ export interface OpLog {
 	details: string | null;
 }
 
+// Type for database instance that works with both bun:sqlite and better-sqlite3
+interface DatabaseInstance {
+	exec(sql: string): void;
+	prepare(sql: string): {
+		run(...params: unknown[]): void;
+		get(...params: unknown[]): unknown;
+		all(): unknown[];
+	};
+}
+
 export class SyncStore {
-	private db: any; // Database instance (bun:sqlite or better-sqlite3)
+	private db: DatabaseInstance; // Database instance (bun:sqlite or better-sqlite3)
 
 	constructor(dbPath?: string) {
 		const configDir = join(process.cwd(), ".backlog-jira");

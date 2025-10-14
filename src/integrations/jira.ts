@@ -81,8 +81,8 @@ export class JiraClient {
 		if (!hasApiTokenAuth && !hasPersonalTokenAuth) {
 			throw new Error(
 				"Missing required Jira credentials. Please set either:\n" +
-				"  - For Jira Cloud: JIRA_URL, JIRA_EMAIL (or JIRA_USERNAME), and JIRA_API_TOKEN\n" +
-				"  - For Jira Server/Data Center: JIRA_URL and JIRA_PERSONAL_TOKEN",
+					"  - For Jira Cloud: JIRA_URL, JIRA_EMAIL (or JIRA_USERNAME), and JIRA_API_TOKEN\n" +
+					"  - For Jira Server/Data Center: JIRA_URL and JIRA_PERSONAL_TOKEN",
 			);
 		}
 
@@ -93,16 +93,16 @@ export class JiraClient {
 			JIRA_URL: jiraUrl,
 		};
 
-		if (hasPersonalTokenAuth) {
+		if (hasPersonalTokenAuth && jiraPersonalToken) {
 			// Personal Access Token authentication (Server/Data Center)
 			dockerArgs.push("-e", "JIRA_PERSONAL_TOKEN");
-			envVars.JIRA_PERSONAL_TOKEN = jiraPersonalToken!;
+			envVars.JIRA_PERSONAL_TOKEN = jiraPersonalToken;
 			logger.debug("Using Personal Access Token authentication");
-		} else {
+		} else if (jiraUsername && jiraApiToken) {
 			// API Token authentication (Cloud)
 			dockerArgs.push("-e", "JIRA_USERNAME", "-e", "JIRA_API_TOKEN");
-			envVars.JIRA_USERNAME = jiraUsername!;
-			envVars.JIRA_API_TOKEN = jiraApiToken!;
+			envVars.JIRA_USERNAME = jiraUsername;
+			envVars.JIRA_API_TOKEN = jiraApiToken;
 			logger.debug("Using API Token authentication");
 		}
 
@@ -215,9 +215,11 @@ export class JiraClient {
 	/**
 	 * Get all accessible Jira projects
 	 */
-	async getAllProjects(): Promise<Array<{ key: string; name: string; id: string }>> {
+	async getAllProjects(): Promise<
+		Array<{ key: string; name: string; id: string }>
+	> {
 		try {
-			const result = await this.callMcpTool("jira_get_all_projects", {}) as {
+			const result = (await this.callMcpTool("jira_get_all_projects", {})) as {
 				projects: Array<{
 					key: string;
 					name: string;
@@ -251,36 +253,38 @@ export class JiraClient {
 				input.fields = options.fields;
 			}
 
-		const result = (await this.callMcpTool("jira_search", input)) as {
-			issues: Array<{
-				key: string;
-				id: string;
-				fields: {
-					summary: string;
-					description?: string;
-					status: { name: string };
-					issuetype: { name: string };
-					assignee?: { displayName: string };
-					reporter?: { displayName: string };
-					priority?: { name: string };
-					labels?: string[];
-					created: string;
-					updated: string;
-					[key: string]: unknown;
-				};
-			}>;
-			total: number;
-			startAt: number;
-			maxResults: number;
-		};
+			const result = (await this.callMcpTool("jira_search", input)) as {
+				issues: Array<{
+					key: string;
+					id: string;
+					fields: {
+						summary: string;
+						description?: string;
+						status: { name: string };
+						issuetype: { name: string };
+						assignee?: { displayName: string };
+						reporter?: { displayName: string };
+						priority?: { name: string };
+						labels?: string[];
+						created: string;
+						updated: string;
+						[key: string]: unknown;
+					};
+				}>;
+				total: number;
+				startAt: number;
+				maxResults: number;
+			};
 
-		// Validate the result has the expected structure
-		if (!result || !Array.isArray(result.issues)) {
-			logger.error({ result }, "Invalid response from jira_search");
-			throw new Error("Invalid response from Jira API: missing or invalid 'issues' array");
-		}
+			// Validate the result has the expected structure
+			if (!result || !Array.isArray(result.issues)) {
+				logger.error({ result }, "Invalid response from jira_search");
+				throw new Error(
+					"Invalid response from Jira API: missing or invalid 'issues' array",
+				);
+			}
 
-		const issues: JiraIssue[] = result.issues.map((issue) => ({
+			const issues: JiraIssue[] = result.issues.map((issue) => ({
 				key: issue.key,
 				id: issue.id,
 				summary: issue.fields.summary,

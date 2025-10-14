@@ -58,12 +58,14 @@ describe("PlainTextDisplayAdapter", () => {
 	});
 
 	it("should show correct sync state icons", () => {
-		const createTaskWithState = (state: string): TaskWithJira => ({
+		const createTaskWithState = (
+			state: "InSync" | "NeedsPush" | "NeedsPull" | "Conflict" | "Unknown",
+		): TaskWithJira => ({
 			id: "task-1",
 			title: "Test",
 			status: "To Do",
 			jiraKey: "PROJ-1",
-			jiraSyncState: state as any,
+			jiraSyncState: state,
 		});
 
 		const coreFormatter = (_t: Task, _c: string, _f?: string) => "Core";
@@ -214,12 +216,14 @@ describe("BlessedDisplayAdapter", () => {
 	});
 
 	it("should use correct colors for sync states", () => {
-		const createTaskWithState = (state: string): TaskWithJira => ({
+		const createTaskWithState = (
+			state: "InSync" | "NeedsPush" | "NeedsPull" | "Conflict" | "Unknown",
+		): TaskWithJira => ({
 			id: "task-1",
 			title: "Test",
 			status: "To Do",
 			jiraKey: "PROJ-1",
-			jiraSyncState: state as any,
+			jiraSyncState: state,
 		});
 
 		const coreGenerator = (_t: Task, _r: string) => ({

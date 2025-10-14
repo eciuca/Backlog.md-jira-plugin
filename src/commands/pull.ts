@@ -52,7 +52,12 @@ export async function pull(options: PullOptions = {}): Promise<PullResult> {
 
 	try {
 		// Get list of tasks to pull and issues to import
-		const { mapped, unmapped } = await getTaskIds(options, backlog, jira, store);
+		const { mapped, unmapped } = await getTaskIds(
+			options,
+			backlog,
+			jira,
+			store,
+		);
 
 		logger.info(
 			{ mappedCount: mapped.length, unmappedCount: unmapped.length },
@@ -80,7 +85,10 @@ export async function pull(options: PullOptions = {}): Promise<PullResult> {
 						const errorMsg =
 							error instanceof Error ? error.message : String(error);
 						result.failed.push({ taskId: jiraKey, error: errorMsg });
-						logger.error({ jiraKey, error: errorMsg }, "Failed to import issue");
+						logger.error(
+							{ jiraKey, error: errorMsg },
+							"Failed to import issue",
+						);
 						result.success = false;
 					}
 				});
@@ -203,7 +211,7 @@ async function getIssuesForImport(
 ): Promise<{ mapped: string[]; unmapped: string[] }> {
 	// Get JQL from options or config
 	let jql = options.jql;
-	
+
 	if (!jql) {
 		// Try to load from config
 		try {
@@ -216,7 +224,7 @@ async function getIssuesForImport(
 			logger.warn({ error }, "Failed to load JQL from config");
 		}
 	}
-	
+
 	if (!jql) {
 		// Default JQL: project = PROJECTKEY
 		const projectKey = process.env.JIRA_PROJECT;
@@ -228,17 +236,20 @@ async function getIssuesForImport(
 			);
 		}
 	}
-	
+
 	logger.info({ jql }, "Fetching Jira issues for import");
-	
+
 	// Search for issues
 	const result = await jira.searchIssues(jql, { maxResults: 50 });
-	logger.info({ count: result.issues.length, total: result.total }, "Found Jira issues");
-	
+	logger.info(
+		{ count: result.issues.length, total: result.total },
+		"Found Jira issues",
+	);
+
 	// Separate mapped and unmapped issues
 	const mapped: string[] = [];
 	const unmapped: string[] = [];
-	
+
 	for (const issue of result.issues) {
 		const mapping = store.getMappingByJiraKey(issue.key);
 		if (mapping) {
@@ -249,12 +260,12 @@ async function getIssuesForImport(
 			unmapped.push(issue.key);
 		}
 	}
-	
+
 	logger.info(
 		{ mappedCount: mapped.length, unmappedCount: unmapped.length },
 		"Categorized issues for import",
 	);
-	
+
 	return { mapped, unmapped };
 }
 
@@ -611,12 +622,7 @@ async function importJiraIssue(
 	// Set initial snapshots
 	const task = await backlog.getTask(taskId);
 	const syncedHash = computeHash(normalizeJiraIssue(issue));
-	store.setSnapshot(
-		taskId,
-		"backlog",
-		syncedHash,
-		normalizeBacklogTask(task),
-	);
+	store.setSnapshot(taskId, "backlog", syncedHash, normalizeBacklogTask(task));
 	store.setSnapshot(taskId, "jira", syncedHash, normalizeJiraIssue(issue));
 
 	store.updateSyncState(taskId, {
@@ -637,10 +643,7 @@ async function importJiraIssue(
 			jiraSyncState: "InSync",
 		});
 
-		logger.debug(
-			{ taskId, jiraKey },
-			"Updated frontmatter with Jira metadata",
-		);
+		logger.debug({ taskId, jiraKey }, "Updated frontmatter with Jira metadata");
 	} catch (error) {
 		logger.error(
 			{ taskId, error },

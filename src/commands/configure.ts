@@ -1,10 +1,10 @@
-import { confirm, input, password, select } from "@inquirer/prompts";
-import chalk from "chalk";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import type { JiraConfig } from "./init.ts";
+import { confirm, input, password, select } from "@inquirer/prompts";
+import chalk from "chalk";
 import { JiraClient } from "../integrations/jira.ts";
 import { logger } from "../utils/logger.ts";
+import type { JiraConfig } from "./init.ts";
 
 interface ConfigureOptions {
 	nonInteractive?: boolean;
@@ -19,12 +19,16 @@ interface JiraProjectInfo {
 /**
  * Interactive wizard to configure Jira connection settings
  */
-export async function configureCommand(options: ConfigureOptions = {}): Promise<void> {
+export async function configureCommand(
+	options: ConfigureOptions = {},
+): Promise<void> {
 	if (options.nonInteractive) {
 		console.log(chalk.yellow("Non-interactive mode is not yet implemented."));
 		console.log("Please use environment variables for CI/CD setup:");
 		console.log("  - JIRA_URL");
-		console.log("  - JIRA_EMAIL (for Cloud) or JIRA_PERSONAL_TOKEN (for Server)");
+		console.log(
+			"  - JIRA_EMAIL (for Cloud) or JIRA_PERSONAL_TOKEN (for Server)",
+		);
 		console.log("  - JIRA_API_TOKEN (for Cloud)");
 		process.exit(1);
 	}
@@ -70,7 +74,10 @@ export async function configureCommand(options: ConfigureOptions = {}): Promise<
 	while (!urlValid) {
 		jiraUrl = await input({
 			message: "Jira URL:",
-			default: instanceType === "cloud" ? "https://your-domain.atlassian.net" : "https://jira.yourcompany.com",
+			default:
+				instanceType === "cloud"
+					? "https://your-domain.atlassian.net"
+					: "https://jira.yourcompany.com",
 			validate: (value) => {
 				if (!value || value.trim() === "") {
 					return "URL is required";
@@ -99,7 +106,7 @@ export async function configureCommand(options: ConfigureOptions = {}): Promise<
 
 	// Step 3: Credentials
 	console.log(chalk.bold.green("\n\nStep 3: Authentication"));
-	
+
 	let jiraEmail = "";
 	let jiraApiToken = "";
 	let jiraPersonalToken = "";
@@ -107,7 +114,11 @@ export async function configureCommand(options: ConfigureOptions = {}): Promise<
 	if (instanceType === "cloud") {
 		console.log(chalk.gray("For Jira Cloud, you need an API token.\n"));
 		console.log(chalk.cyan("To create an API token:"));
-		console.log(chalk.cyan("  1. Go to https://id.atlassian.com/manage-profile/security/api-tokens"));
+		console.log(
+			chalk.cyan(
+				"  1. Go to https://id.atlassian.com/manage-profile/security/api-tokens",
+			),
+		);
 		console.log(chalk.cyan("  2. Click 'Create API token'"));
 		console.log(chalk.cyan("  3. Copy the generated token\n"));
 
@@ -135,11 +146,17 @@ export async function configureCommand(options: ConfigureOptions = {}): Promise<
 			},
 		});
 	} else {
-		console.log(chalk.gray("For Jira Server/Data Center, you need a Personal Access Token.\n"));
+		console.log(
+			chalk.gray(
+				"For Jira Server/Data Center, you need a Personal Access Token.\n",
+			),
+		);
 		console.log(chalk.cyan("To create a Personal Access Token:"));
 		console.log(chalk.cyan("  1. Go to your Jira profile settings"));
 		console.log(chalk.cyan("  2. Navigate to 'Personal Access Tokens'"));
-		console.log(chalk.cyan("  3. Create a new token with appropriate permissions\n"));
+		console.log(
+			chalk.cyan("  3. Create a new token with appropriate permissions\n"),
+		);
 
 		jiraPersonalToken = await password({
 			message: "Personal Access Token:",
@@ -169,11 +186,11 @@ export async function configureCommand(options: ConfigureOptions = {}): Promise<
 	if (instanceType === "cloud") {
 		process.env.JIRA_EMAIL = jiraEmail;
 		process.env.JIRA_API_TOKEN = jiraApiToken;
-		delete process.env.JIRA_PERSONAL_TOKEN;
+		process.env.JIRA_PERSONAL_TOKEN = undefined;
 	} else {
 		process.env.JIRA_PERSONAL_TOKEN = jiraPersonalToken;
-		delete process.env.JIRA_EMAIL;
-		delete process.env.JIRA_API_TOKEN;
+		process.env.JIRA_EMAIL = undefined;
+		process.env.JIRA_API_TOKEN = undefined;
 	}
 
 	let connectionOk = false;
@@ -198,14 +215,20 @@ export async function configureCommand(options: ConfigureOptions = {}): Promise<
 				logger.debug({ error }, "Failed to fetch projects");
 			}
 		} else {
-			console.log(chalk.red("✗ Connection failed. Please check your credentials.\n"));
+			console.log(
+				chalk.red("✗ Connection failed. Please check your credentials.\n"),
+			);
 			// Restore original environment
 			Object.assign(process.env, originalEnv);
 			process.exit(1);
 		}
 	} catch (error) {
 		console.log(chalk.red("✗ Connection failed:"));
-		console.log(chalk.red(`  ${error instanceof Error ? error.message : String(error)}\n`));
+		console.log(
+			chalk.red(
+				`  ${error instanceof Error ? error.message : String(error)}\n`,
+			),
+		);
 		// Restore original environment
 		Object.assign(process.env, originalEnv);
 		process.exit(1);
@@ -218,7 +241,7 @@ export async function configureCommand(options: ConfigureOptions = {}): Promise<
 	let projectKey = "";
 
 	if (availableProjects.length > 0) {
-		const projectChoices = availableProjects.map(p => ({
+		const projectChoices = availableProjects.map((p) => ({
 			name: `${p.key} - ${p.name}`,
 			value: p.key,
 		}));
@@ -298,7 +321,9 @@ export async function configureCommand(options: ConfigureOptions = {}): Promise<
 
 	// Step 7: JQL Filter (optional)
 	console.log(chalk.bold.green("\n\nStep 7: JQL Filter (Optional)"));
-	console.log(chalk.gray("Add a JQL filter to limit which issues are synced.\n"));
+	console.log(
+		chalk.gray("Add a JQL filter to limit which issues are synced.\n"),
+	);
 
 	const useJqlFilter = await confirm({
 		message: "Do you want to add a JQL filter?",
@@ -322,10 +347,10 @@ export async function configureCommand(options: ConfigureOptions = {}): Promise<
 		default: false,
 	});
 
-	let statusMapping: Record<string, string[]> = {
+	const statusMapping: Record<string, string[]> = {
 		"To Do": ["To Do", "Open", "Backlog"],
 		"In Progress": ["In Progress"],
-		"Done": ["Done", "Closed", "Resolved"],
+		Done: ["Done", "Closed", "Resolved"],
 	};
 
 	if (useCustomMapping) {
@@ -335,14 +360,20 @@ export async function configureCommand(options: ConfigureOptions = {}): Promise<
 		console.log(chalk.gray("  Done → Done, Closed, Resolved\n"));
 
 		// TODO: Could make this more interactive in the future
-		console.log(chalk.yellow("Note: Using default mapping for now. Edit .backlog-jira/config.json to customize."));
+		console.log(
+			chalk.yellow(
+				"Note: Using default mapping for now. Edit .backlog-jira/config.json to customize.",
+			),
+		);
 	}
 
 	// Step 9: Conflict resolution strategy
 	console.log(chalk.bold.green("\n\nStep 9: Conflict Resolution Strategy"));
 	console.log(chalk.gray("How should conflicts be handled during sync?\n"));
 
-	const conflictStrategy = await select<"prompt" | "prefer-backlog" | "prefer-jira">({
+	const conflictStrategy = await select<
+		"prompt" | "prefer-backlog" | "prefer-jira"
+	>({
 		message: "Conflict resolution strategy:",
 		choices: [
 			{
@@ -371,13 +402,19 @@ export async function configureCommand(options: ConfigureOptions = {}): Promise<
 	// Display configuration summary
 	console.log(chalk.bold.cyan("Configuration Summary:"));
 	console.log(chalk.gray("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"));
-	console.log(`  Instance Type: ${instanceType === "cloud" ? "Jira Cloud" : "Jira Server/Data Center"}`);
+	console.log(
+		`  Instance Type: ${instanceType === "cloud" ? "Jira Cloud" : "Jira Server/Data Center"}`,
+	);
 	console.log(`  Jira URL:      ${jiraUrl}`);
 	if (instanceType === "cloud") {
 		console.log(`  Email:         ${jiraEmail}`);
-		console.log(`  API Token:     ${"*".repeat(Math.min(jiraApiToken.length, 20))}`);
+		console.log(
+			`  API Token:     ${"*".repeat(Math.min(jiraApiToken.length, 20))}`,
+		);
 	} else {
-		console.log(`  PAT:           ${"*".repeat(Math.min(jiraPersonalToken.length, 20))}`);
+		console.log(
+			`  PAT:           ${"*".repeat(Math.min(jiraPersonalToken.length, 20))}`,
+		);
 	}
 	console.log(`  Project Key:   ${projectKey}`);
 	console.log(`  Issue Type:    ${finalIssueType}`);
@@ -433,12 +470,12 @@ export async function configureCommand(options: ConfigureOptions = {}): Promise<
 			// Read existing .env and preserve non-JIRA variables
 			const existingContent = readFileSync(envPath, "utf-8");
 			const lines = existingContent.split("\n");
-			const filteredLines = lines.filter(line => {
+			const filteredLines = lines.filter((line) => {
 				const trimmed = line.trim();
 				return !trimmed.startsWith("JIRA_") && trimmed !== "";
 			});
 			if (filteredLines.length > 0) {
-				envContent = filteredLines.join("\n") + "\n\n";
+				envContent = `${filteredLines.join("\n")}\n\n`;
 			}
 		}
 
@@ -457,22 +494,26 @@ export async function configureCommand(options: ConfigureOptions = {}): Promise<
 		// Check .gitignore
 		const gitignorePath = join(process.cwd(), ".gitignore");
 		let gitignoreContent = "";
-		
+
 		if (existsSync(gitignorePath)) {
 			gitignoreContent = readFileSync(gitignorePath, "utf-8");
 		}
 
 		if (!gitignoreContent.includes(".env")) {
 			console.log(chalk.yellow("\n⚠️  WARNING: .env is not in .gitignore"));
-			console.log(chalk.yellow("   Your credentials may be committed to version control!"));
-			
+			console.log(
+				chalk.yellow(
+					"   Your credentials may be committed to version control!",
+				),
+			);
+
 			const addToGitignore = await confirm({
 				message: "Add .env to .gitignore?",
 				default: true,
 			});
 
 			if (addToGitignore) {
-				const newGitignore = gitignoreContent + (gitignoreContent.endsWith("\n") ? "" : "\n") + ".env\n";
+				const newGitignore = `${gitignoreContent + (gitignoreContent.endsWith("\n") ? "" : "\n")}.env\n`;
 				writeFileSync(gitignorePath, newGitignore);
 				console.log(chalk.green("✓ Added .env to .gitignore"));
 			}
@@ -484,16 +525,22 @@ export async function configureCommand(options: ConfigureOptions = {}): Promise<
 	if (!existsSync(backlogGitignorePath)) {
 		writeFileSync(
 			backlogGitignorePath,
-			`# Ignore all files in .backlog-jira/\n*\n!.gitignore\n`,
+			"# Ignore all files in .backlog-jira/\n*\n!.gitignore\n",
 		);
 	}
 
 	// Success!
 	console.log(chalk.bold.green("\n✓ Configuration complete!\n"));
 	console.log(chalk.cyan("Next steps:"));
-	console.log(chalk.gray("  1. Run 'backlog-jira connect' to verify connections"));
-	console.log(chalk.gray("  2. Run 'backlog-jira doctor' to check environment setup"));
-	console.log(chalk.gray("  3. Start syncing with 'backlog-jira sync --all'\n"));
+	console.log(
+		chalk.gray("  1. Run 'backlog-jira connect' to verify connections"),
+	);
+	console.log(
+		chalk.gray("  2. Run 'backlog-jira doctor' to check environment setup"),
+	);
+	console.log(
+		chalk.gray("  3. Start syncing with 'backlog-jira sync --all'\n"),
+	);
 
 	// Restore original environment (keeping the new values)
 	// This ensures the process continues with the new configuration

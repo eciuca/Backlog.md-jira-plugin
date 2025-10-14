@@ -14,7 +14,9 @@ const mockBacklogClient = {
 			labels: ["backend"],
 		}),
 	),
-	updateTask: mock((taskId: string, updates: any) => Promise.resolve()),
+	updateTask: mock((taskId: string, updates: Record<string, unknown>) =>
+		Promise.resolve(),
+	),
 };
 
 const mockJiraClient = {
@@ -33,7 +35,9 @@ const mockJiraClient = {
 			updated: "2025-01-01T00:00:00Z",
 		}),
 	),
-	updateIssue: mock((issueKey: string, updates: any) => Promise.resolve()),
+	updateIssue: mock((issueKey: string, updates: Record<string, unknown>) =>
+		Promise.resolve(),
+	),
 };
 
 const mockStore = {
@@ -44,7 +48,13 @@ const mockStore = {
 				jiraKey: "PROJ-1",
 				createdAt: new Date().toISOString(),
 				updatedAt: new Date().toISOString(),
-			}) as any,
+			}) as {
+				backlogId: string;
+				side: string;
+				hash: string;
+				payload: string;
+				updatedAt: string;
+			},
 	),
 	getAllMappings: mock(() => new Map([["task-1", "PROJ-1"]])),
 	getSnapshots: mock((backlogId: string) => ({
@@ -66,7 +76,16 @@ const mockStore = {
 	setSnapshot: mock(
 		(backlogId: string, side: string, hash: string, payload: unknown) => {},
 	),
-	updateSyncState: mock((backlogId: string, updates: any) => {}),
+	updateSyncState: mock(
+		(
+			backlogId: string,
+			updates: Partial<{
+				lastSyncAt: string | null;
+				conflictState: string | null;
+				strategy: string | null;
+			}>,
+		) => {},
+	),
 	logOperation: mock(
 		(
 			op: string,
@@ -79,21 +98,31 @@ const mockStore = {
 	close: mock(() => {}),
 };
 
-const mockPush = mock((options: any) =>
-	Promise.resolve({
-		success: true,
-		pushed: ["task-1"],
-		failed: [],
-		skipped: [],
-	}),
+const mockPush = mock(
+	(options: {
+		taskId?: string;
+		project?: string;
+		issueType?: string;
+		dryRun?: boolean;
+	}) =>
+		Promise.resolve({
+			success: true,
+			pushed: ["task-1"],
+			failed: [],
+			skipped: [],
+		}),
 );
-const mockPull = mock((options: any) =>
-	Promise.resolve({
-		success: true,
-		pulled: ["task-1"],
-		failed: [],
-		skipped: [],
-	}),
+const mockPull = mock(
+	(options: {
+		jiraKey?: string;
+		dryRun?: boolean;
+	}) =>
+		Promise.resolve({
+			success: true,
+			pulled: ["task-1"],
+			failed: [],
+			skipped: [],
+		}),
 );
 
 describe("sync command", () => {

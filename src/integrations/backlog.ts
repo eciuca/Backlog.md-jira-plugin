@@ -265,13 +265,19 @@ export class BacklogClient {
 			const match = output.match(/task-(\d+)/);
 			if (match) {
 				const taskId = `task-${match[1]}`;
-				logger.info({ taskId, title: options.title }, "Task created successfully");
+				logger.info(
+					{ taskId, title: options.title },
+					"Task created successfully",
+				);
 				return taskId;
 			}
 			// If no match, try to parse the entire output as task ID
 			const trimmed = output.trim();
 			if (trimmed.startsWith("task-")) {
-				logger.info({ taskId: trimmed, title: options.title }, "Task created successfully");
+				logger.info(
+					{ taskId: trimmed, title: options.title },
+					"Task created successfully",
+				);
 				return trimmed;
 			}
 			throw new Error(`Failed to parse task ID from output: ${output}`);
