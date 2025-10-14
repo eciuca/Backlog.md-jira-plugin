@@ -1,28 +1,22 @@
 import pino from "pino";
 
-const redactPatterns = [
-	"*.password",
-	"*.token",
-	"*.apiKey",
-	"*.secret",
-	"*.authorization",
-	"*.auth",
-	"jira.email",
-	"jira.apiToken",
-];
+// Use pino-pretty transport only in development to avoid bundling issues
+// In production/bundled mode, use basic pino logger
+// Note: Redact feature is disabled to avoid bundling compatibility issues
+const isDevelopment = process.env.NODE_ENV === "development";
 
-export const logger = pino({
-	level: process.env.LOG_LEVEL || "info",
-	redact: {
-		paths: redactPatterns,
-		censor: "[REDACTED]",
-	},
-	transport: {
-		target: "pino-pretty",
-		options: {
-			colorize: true,
-			translateTime: "HH:MM:ss",
-			ignore: "pid,hostname",
-		},
-	},
-});
+export const logger = isDevelopment
+	? pino({
+			level: process.env.LOG_LEVEL || "info",
+			transport: {
+				target: "pino-pretty",
+				options: {
+					colorize: true,
+					translateTime: "HH:MM:ss",
+					ignore: "pid,hostname",
+				},
+			},
+		})
+	: pino({
+			level: process.env.LOG_LEVEL || "info",
+		});
