@@ -37,12 +37,31 @@ export interface JiraTransition {
 /**
  * JiraClient wraps MCP Atlassian tools for Jira operations
  */
+export interface JiraClientOptions {
+	dockerImage?: string;
+	useExternalServer?: boolean;
+	serverCommand?: string;
+	serverArgs?: string[];
+	dockerArgs?: string[];
+	fallbackToDocker?: boolean;
+}
+
 export class JiraClient {
 	private client: Client | null = null;
 	private dockerImage: string;
+	private useExternalServer: boolean;
+	private serverCommand: string;
+	private serverArgs: string[];
+	private dockerArgs: string[];
+	private fallbackToDocker: boolean;
 
-	constructor(dockerImage = "ghcr.io/sooperset/mcp-atlassian:latest") {
-		this.dockerImage = dockerImage;
+	constructor(options: JiraClientOptions = {}) {
+		this.dockerImage = options.dockerImage || "ghcr.io/sooperset/mcp-atlassian:latest";
+		this.useExternalServer = options.useExternalServer || false;
+		this.serverCommand = options.serverCommand || "mcp-atlassian";
+		this.serverArgs = options.serverArgs || [];
+		this.dockerArgs = options.dockerArgs || [];
+		this.fallbackToDocker = options.fallbackToDocker !== false; // default true
 	}
 
 	/**
@@ -61,20 +80,53 @@ export class JiraClient {
 			version: "1.0.0",
 		});
 
-		// Get credentials from environment
+		// Validate credentials first
+		const envVars = this.validateAndPrepareCredentials();
+
+		// Try external server first if enabled
+		if (this.useExternalServer) {
+			try {
+				const transport = await this.createExternalServerTransport(envVars);
+				await this.client.connect(transport);
+				logger.info("Successfully connected to external MCP Atlassian server");
+				return this.client;
+			} catch (error) {
+				logger.warn({ error }, "Failed to connect to external MCP server");
+				if (!this.fallbackToDocker) {
+					this.client = null;
+					throw error;
+				}
+				logger.info("Falling back to Docker-based MCP server");
+			}
+		}
+
+		// Use Docker approach (either as primary or fallback)
+		try {
+			const transport = this.createDockerTransport(envVars);
+			await this.client.connect(transport);
+			logger.info("Successfully connected to Docker-based MCP Atlassian server");
+			return this.client;
+		} catch (error) {
+			logger.error({ error }, "Failed to connect to MCP Atlassian server");
+			this.client = null;
+			throw error;
+		}
+	}
+
+	/**
+	 * Validate credentials and prepare environment variables
+	 */
+	private validateAndPrepareCredentials(): Record<string, string> {
 		const jiraUrl = process.env.JIRA_URL;
 		const jiraUsername = process.env.JIRA_EMAIL || process.env.JIRA_USERNAME;
 		const jiraApiToken = process.env.JIRA_API_TOKEN;
 		const jiraPersonalToken = process.env.JIRA_PERSONAL_TOKEN;
 
-		// Validate credentials based on authentication method
 		if (!jiraUrl) {
 			throw new Error("Missing JIRA_URL environment variable.");
 		}
 
-		// Support both authentication methods:
-		// 1. API Token (Cloud): requires username + API token
-		// 2. Personal Access Token (Server/Data Center): requires only PAT
+		// Support both authentication methods
 		const hasApiTokenAuth = jiraUsername && jiraApiToken;
 		const hasPersonalTokenAuth = jiraPersonalToken;
 
@@ -86,44 +138,68 @@ export class JiraClient {
 			);
 		}
 
-		// Build Docker args based on authentication method
-		const dockerArgs = ["run", "--rm", "-i", "-e", "JIRA_URL"];
 		const envVars: Record<string, string> = {
 			...process.env,
 			JIRA_URL: jiraUrl,
 		};
 
 		if (hasPersonalTokenAuth && jiraPersonalToken) {
-			// Personal Access Token authentication (Server/Data Center)
-			dockerArgs.push("-e", "JIRA_PERSONAL_TOKEN");
 			envVars.JIRA_PERSONAL_TOKEN = jiraPersonalToken;
 			logger.debug("Using Personal Access Token authentication");
 		} else if (jiraUsername && jiraApiToken) {
-			// API Token authentication (Cloud)
-			dockerArgs.push("-e", "JIRA_USERNAME", "-e", "JIRA_API_TOKEN");
 			envVars.JIRA_USERNAME = jiraUsername;
 			envVars.JIRA_API_TOKEN = jiraApiToken;
 			logger.debug("Using API Token authentication");
 		}
 
+		return envVars;
+	}
+
+	/**
+	 * Create transport for external MCP server
+	 */
+	private async createExternalServerTransport(envVars: Record<string, string>): Promise<StdioClientTransport> {
+		logger.debug({ command: this.serverCommand, args: this.serverArgs }, "Connecting to external MCP server");
+		
+		return new StdioClientTransport({
+			command: this.serverCommand,
+			args: this.serverArgs,
+			env: envVars,
+		});
+	}
+
+	/**
+	 * Create transport for Docker-based MCP server
+	 */
+	private createDockerTransport(envVars: Record<string, string>): StdioClientTransport {
+		const dockerArgs = ["run", "-i", "-e", "JIRA_URL"];
+
+		if (envVars.JIRA_PERSONAL_TOKEN) {
+			dockerArgs.push("-e", "JIRA_PERSONAL_TOKEN");
+		} else if (envVars.JIRA_USERNAME && envVars.JIRA_API_TOKEN) {
+			dockerArgs.push("-e", "JIRA_USERNAME", "-e", "JIRA_API_TOKEN");
+		}
+
+		// Add custom Docker arguments (e.g., --dns, --dns-search) before the image
+		if (this.dockerArgs.length > 0) {
+			logger.debug({ customDockerArgs: this.dockerArgs }, "Adding custom Docker arguments");
+			// Split arguments that contain spaces (e.g., "--dns 8.8.8.8" -> ["--dns", "8.8.8.8"])
+			const splitArgs = this.dockerArgs.flatMap(arg => arg.split(/\s+/));
+			dockerArgs.push(...splitArgs);
+		}
+
 		dockerArgs.push(this.dockerImage);
 
-		// Create transport using Docker to spawn MCP Atlassian server
-		const transport = new StdioClientTransport({
+		// Log the complete Docker command for debugging
+		const fullCommand = `docker ${dockerArgs.join(" ")}`;
+		logger.info({ command: fullCommand, dockerArgs }, "Creating Docker-based MCP transport");
+		console.log(`\n🐳 Docker command: ${fullCommand}\n`);
+
+		return new StdioClientTransport({
 			command: "docker",
 			args: dockerArgs,
 			env: envVars,
 		});
-
-		try {
-			await this.client.connect(transport);
-			logger.info("Successfully connected to MCP Atlassian server");
-			return this.client;
-		} catch (error) {
-			logger.error({ error }, "Failed to connect to MCP Atlassian server");
-			this.client = null;
-			throw error;
-		}
 	}
 
 	/**
@@ -253,64 +329,77 @@ export class JiraClient {
 				input.fields = options.fields;
 			}
 
-			const result = (await this.callMcpTool("jira_search", input)) as {
-				issues: Array<{
-					key: string;
-					id: string;
-					fields: {
-						summary: string;
-						description?: string;
-						status: { name: string };
-						issuetype: { name: string };
-						assignee?: { displayName: string };
-						reporter?: { displayName: string };
-						priority?: { name: string };
-						labels?: string[];
-						created: string;
-						updated: string;
-						[key: string]: unknown;
-					};
-				}>;
-				total: number;
-				startAt: number;
-				maxResults: number;
-			};
+		const result = (await this.callMcpTool("jira_search", input)) as {
+			issues: Array<Record<string, unknown>>;
+			total: number;
+			startAt?: number;
+			start_at?: number;
+			maxResults?: number;
+			max_results?: number;
+		};
 
-			// Validate the result has the expected structure
-			if (!result || !Array.isArray(result.issues)) {
-				logger.error({ result }, "Invalid response from jira_search");
-				throw new Error(
-					"Invalid response from Jira API: missing or invalid 'issues' array",
-				);
-			}
-
-			const issues: JiraIssue[] = result.issues.map((issue) => ({
-				key: issue.key,
-				id: issue.id,
-				summary: issue.fields.summary,
-				description: issue.fields.description as string | undefined,
-				status: issue.fields.status.name,
-				issueType: issue.fields.issuetype.name,
-				assignee: issue.fields.assignee?.displayName,
-				reporter: issue.fields.reporter?.displayName,
-				priority: issue.fields.priority?.name,
-				labels: issue.fields.labels,
-				created: issue.fields.created,
-				updated: issue.fields.updated,
-				fields: issue.fields,
-			}));
-
-			logger.info(
-				{ jql, count: issues.length, total: result.total },
-				"Searched Jira issues",
+		// Validate the result has the expected structure
+		if (!result || !Array.isArray(result.issues)) {
+			logger.error({ result }, "Invalid response from jira_search");
+			throw new Error(
+				"Invalid response from Jira API: missing or invalid 'issues' array",
 			);
+		}
+
+		const issues: JiraIssue[] = result.issues.map((issue) => {
+			// MCP Atlassian returns fields at top level, not nested under 'fields'
+			// Handle both formats for compatibility
+			const hasNestedFields = issue.fields && typeof issue.fields === "object";
+			const fields = hasNestedFields ? (issue.fields as Record<string, unknown>) : issue;
+			
+			// Extract status
+			const status = fields.status as { name: string } | { id: string; name: string } | undefined;
+			const statusName = status?.name || "Unknown";
+			
+			// Extract issue type
+			const issueType = fields.issue_type as { name: string } | undefined;
+			const issueTypeName = issueType?.name || (fields.issuetype as { name: string } | undefined)?.name || "Task";
+			
+			// Extract assignee
+			const assignee = fields.assignee as { display_name?: string; displayName?: string } | undefined;
+			const assigneeName = assignee?.display_name || assignee?.displayName;
+			
+			// Extract reporter
+			const reporter = fields.reporter as { display_name?: string; displayName?: string } | undefined;
+			const reporterName = reporter?.display_name || reporter?.displayName;
+			
+			// Extract priority
+			const priority = fields.priority as { name: string } | undefined;
+			const priorityName = priority?.name;
 
 			return {
-				issues,
-				total: result.total,
-				startAt: result.startAt,
-				maxResults: result.maxResults,
+				key: issue.key as string,
+				id: issue.id as string,
+				summary: fields.summary as string,
+				description: fields.description as string | undefined,
+				status: statusName,
+				issueType: issueTypeName,
+				assignee: assigneeName,
+				reporter: reporterName,
+				priority: priorityName,
+				labels: (fields.labels as string[]) || [],
+				created: fields.created as string,
+				updated: fields.updated as string,
+				fields: fields as Record<string, unknown>,
 			};
+		});
+
+		logger.info(
+			{ jql, count: issues.length, total: result.total },
+			"Searched Jira issues",
+		);
+
+		return {
+			issues,
+			total: result.total,
+			startAt: result.startAt || result.start_at || 0,
+			maxResults: result.maxResults || result.max_results || 50,
+		};
 		} catch (error) {
 			logger.error({ error, jql }, "Failed to search Jira issues");
 			throw error;
