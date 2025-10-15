@@ -299,6 +299,87 @@ async function createMapping(
 }
 
 /**
+ * Link task command: directly link a Backlog task to a Jira issue by key
+ */
+async function linkTask(
+	taskId: string,
+	jiraKey: string,
+	options: { force?: boolean } = {},
+): Promise<void> {
+	const store = new SyncStore();
+	const backlog = new BacklogClient();
+	const jira = new JiraClient(getJiraClientOptions());
+
+	try {
+		logger.info({ taskId, jiraKey }, "Starting link task operation");
+
+		// Validate taskId exists
+		console.log(`🔍 Validating task ${taskId}...`);
+		try {
+			await backlog.getTask(taskId);
+			console.log(`✓ Task ${taskId} exists`);
+		} catch (error) {
+			console.error(`❌ Task ${taskId} does not exist`);
+			logger.error({ error, taskId }, "Task not found");
+			throw new Error(`Task ${taskId} not found`);
+		}
+
+		// Validate jiraKey exists
+		console.log(`🔍 Validating Jira issue ${jiraKey}...`);
+		try {
+			await jira.getIssue(jiraKey);
+			console.log(`✓ Jira issue ${jiraKey} exists`);
+		} catch (error) {
+			console.error(`❌ Jira issue ${jiraKey} does not exist`);
+			logger.error({ error, jiraKey }, "Jira issue not found");
+			throw new Error(`Jira issue ${jiraKey} not found`);
+		}
+
+		// Check if mapping already exists
+		const existingMapping = store.getMapping(taskId);
+		if (existingMapping) {
+			if (!options.force) {
+				console.error(
+					`❌ Task ${taskId} is already linked to ${existingMapping.jiraKey}`,
+				);
+				console.log("   Use --force to overwrite the existing mapping");
+				logger.warn(
+					{ taskId, existingJiraKey: existingMapping.jiraKey, newJiraKey: jiraKey },
+					"Mapping already exists",
+				);
+				throw new Error(
+					`Task ${taskId} is already linked to ${existingMapping.jiraKey}. Use --force to overwrite.`,
+				);
+			}
+			console.log(
+				`⚠️  Overwriting existing mapping ${taskId} → ${existingMapping.jiraKey}`,
+			);
+			logger.info(
+				{ taskId, oldJiraKey: existingMapping.jiraKey, newJiraKey: jiraKey },
+				"Overwriting existing mapping",
+			);
+		}
+
+		// Create the mapping
+		console.log(`🔗 Creating mapping ${taskId} → ${jiraKey}...`);
+		await createMapping(store, backlog, jira, taskId, jiraKey);
+
+		console.log(`\n✅ Successfully linked ${taskId} → ${jiraKey}`);
+		logger.info({ taskId, jiraKey }, "Link task operation completed");
+	} catch (error) {
+		if (error instanceof Error && error.message.includes("already linked")) {
+			// Already logged, just rethrow
+			throw error;
+		}
+		logger.error({ error, taskId, jiraKey }, "Link task operation failed");
+		throw error;
+	} finally {
+		await jira.close();
+		store.close();
+	}
+}
+
+/**
  * Register map command with CLI
  */
 export function registerMapCommand(program: Command): void {
@@ -332,6 +413,22 @@ export function registerMapCommand(program: Command): void {
 				await interactiveMap();
 			} catch (error) {
 				logger.error({ error }, "Interactive map command failed");
+				console.error(`Error: ${error}`);
+				process.exit(1);
+			}
+		});
+
+	mapCmd
+		.command("link")
+		.description("Directly link a Backlog task to a Jira issue by key")
+		.argument("<taskId>", "Backlog task ID (e.g., task-123)")
+		.argument("<jiraKey>", "Jira issue key (e.g., PROJ-456)")
+		.option("--force", "Overwrite existing mapping if present")
+		.action(async (taskId: string, jiraKey: string, options: { force?: boolean }) => {
+			try {
+				await linkTask(taskId, jiraKey, options);
+			} catch (error) {
+				logger.error({ error }, "Link command failed");
 				console.error(`Error: ${error}`);
 				process.exit(1);
 			}
