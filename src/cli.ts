@@ -8,6 +8,7 @@ import { Command } from "commander";
 import packageJson from "../package.json";
 import { configureCommand } from "./commands/configure.ts";
 import { connectCommand } from "./commands/connect.ts";
+import { createIssue } from "./commands/create-issue.ts";
 import { doctorCommand } from "./commands/doctor.ts";
 import { initCommand } from "./commands/init.ts";
 import { registerMapCommand } from "./commands/map.ts";
@@ -92,6 +93,36 @@ registerMapCommand(program);
 registerMcpCommand(program);
 registerStatusCommand(program);
 registerViewCommand(program);
+
+program
+	.command("create-issue <taskId>")
+	.description("Create a Jira issue from an unmapped Backlog task")
+	.option("--issue-type <type>", "Override default issue type (e.g., Task, Bug, Story)")
+	.option("--dry-run", "Show what would be created without creating the issue")
+	.action(async (taskId, options) => {
+		try {
+			const result = await createIssue({
+				taskId,
+				issueType: options.issueType,
+				dryRun: options.dryRun,
+			});
+
+			if (result.success) {
+				if (result.jiraKey) {
+					console.log(`\n✅ Successfully created Jira issue ${result.jiraKey} for task ${result.taskId}`);
+				}
+			} else {
+				console.error(`\n❌ Failed to create Jira issue: ${result.error}`);
+				process.exit(1);
+			}
+		} catch (error) {
+			console.error(
+				"Error:",
+				error instanceof Error ? error.message : String(error),
+			);
+			process.exit(1);
+		}
+	});
 
 program
 	.command("push [taskIds...]")

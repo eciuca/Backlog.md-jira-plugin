@@ -315,10 +315,23 @@ The `connect` command verifies:
 
 #### Workflow 1: Creating New Jira Issues from Backlog
 
+**Option A: Using create-issue command (Recommended)**
 ```bash
 # List unmapped Backlog tasks
 backlog task list --plain
 
+# Create Jira issue directly from Backlog task
+backlog-jira create-issue task-123
+
+# Or preview first with dry-run
+backlog-jira create-issue task-123 --dry-run
+
+# Create with custom issue type
+backlog-jira create-issue task-123 --issue-type Bug
+```
+
+**Option B: Using map + push**
+```bash
 # Map a task to create a new Jira issue
 backlog-jira map
 # Select task → Choose "Create new Jira issue"
@@ -504,6 +517,48 @@ backlog-jira status task-123
 # Show last N operations
 backlog-jira status --history 20
 ```
+
+### `backlog-jira create-issue <taskId>`
+
+Create a new Jira issue from an unmapped Backlog task.
+
+```bash
+# Create issue for a task
+backlog-jira create-issue task-123
+
+# Preview what would be created
+backlog-jira create-issue task-123 --dry-run
+
+# Create with custom issue type
+backlog-jira create-issue task-123 --issue-type Bug
+backlog-jira create-issue task-123 --issue-type Story
+backlog-jira create-issue task-123 --issue-type Epic
+```
+
+**What this command does:**
+1. Validates that the task exists in Backlog
+2. Validates that the task is not already mapped to a Jira issue
+3. Reads all task metadata (title, description, status, assignee, labels, priority, AC)
+4. Maps Backlog priority to Jira priority (High/Medium/Low → High/Medium/Low)
+5. Merges acceptance criteria into Jira description format
+6. Creates the Jira issue via MCP `jira_create_issue` tool
+7. Creates the mapping between task and Jira issue
+8. Stores initial snapshots for 3-way merge conflict detection
+9. Updates task frontmatter with Jira metadata (jiraKey, jiraUrl, jiraSyncState)
+
+**Flags:**
+- `--dry-run`: Preview the issue that would be created without actually creating it
+- `--issue-type <type>`: Override the default issue type from config (e.g., Bug, Story, Epic)
+
+**Success output:**
+```
+✅ Successfully created Jira issue TEST-123 for task task-324
+```
+
+**Error cases:**
+- Task not found: `❌ Failed to create Jira issue: Task task-999 not found in Backlog`
+- Already mapped: `❌ Failed to create Jira issue: Task task-123 is already mapped to Jira issue TEST-100`
+- No project configured: `❌ Failed to create Jira issue: Jira project key not configured in .backlog-jira/config.json`
 
 ### `backlog-jira push [taskIds...]`
 
