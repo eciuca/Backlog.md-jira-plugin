@@ -1,3 +1,181 @@
+<!-- BACKLOG-JIRA GUIDELINES START -->
+# Backlog-Jira Plugin Guidelines
+
+## Overview
+
+The `backlog-jira` plugin provides bidirectional synchronization between Backlog.md tasks and Jira issues.
+It allows you to work locally with Backlog.md's task management while staying synchronized with your team's Jira project.
+
+## Core Commands
+
+### Initialization
+```bash
+backlog-jira init           # Initialize plugin configuration
+backlog-jira connect        # Verify Jira connection
+backlog-jira doctor         # Check environment setup
+```
+
+### Synchronization
+```bash
+backlog-jira pull           # Pull updates from Jira to Backlog.md
+backlog-jira push           # Push Backlog.md changes to Jira
+backlog-jira sync           # Bidirectional sync (pull + push)
+backlog-jira watch          # Continuous sync mode
+```
+
+### Status & Configuration
+```bash
+backlog-jira status         # View sync status
+backlog-jira map            # Configure status mappings
+backlog-jira configure      # Update configuration
+backlog-jira view <task-id> # View task sync details
+```
+
+## Configuration
+
+The plugin stores configuration in `.backlog-jira/config.json`:
+
+```json
+{
+  "jira": {
+    "baseUrl": "https://your-domain.atlassian.net",
+    "projectKey": "PROJ",
+    "issueType": "Task",
+    "jqlFilter": ""
+  },
+  "backlog": {
+    "statusMapping": {
+      "To Do": ["To Do", "Open", "Backlog"],
+      "In Progress": ["In Progress"],
+      "Done": ["Done", "Closed", "Resolved"]
+    }
+  },
+  "sync": {
+    "conflictStrategy": "prompt",
+    "enableAnnotations": false,
+    "watchInterval": 60
+  }
+}
+```
+
+## Authentication
+
+Set your Jira credentials via environment variables:
+
+```bash
+export JIRA_USER_EMAIL="your-email@example.com"
+export JIRA_API_TOKEN="your-api-token"
+```
+
+Generate an API token at: https://id.atlassian.com/manage-profile/security/api-tokens
+
+## Workflow Integration
+
+### Starting Work on a Task
+
+1. **Pull latest from Jira**:
+   ```bash
+   backlog-jira pull
+   ```
+
+2. **Start your task using Backlog.md**:
+   ```bash
+   backlog task edit <id> -s "In Progress" -a @yourself
+   ```
+
+3. **Push status to Jira**:
+   ```bash
+   backlog-jira push
+   ```
+
+### Completing a Task
+
+1. **Update locally**:
+   ```bash
+   backlog task edit <id> -s "Done"
+   ```
+
+2. **Sync with Jira**:
+   ```bash
+   backlog-jira push
+   ```
+
+### Continuous Sync
+
+For active development, use watch mode:
+
+```bash
+backlog-jira watch
+```
+
+This will automatically sync changes every 60 seconds (configurable).
+
+## Conflict Resolution
+
+When conflicts occur (both sides modified), the plugin will:
+
+- **prompt mode** (default): Ask you to choose which version to keep
+- **prefer-backlog**: Always use Backlog.md version
+- **prefer-jira**: Always use Jira version
+
+Configure via:
+```bash
+backlog-jira configure --conflict-strategy <strategy>
+```
+
+## Status Mapping
+
+The plugin maps Backlog.md task statuses to Jira issue statuses. Configure mappings with:
+
+```bash
+backlog-jira map
+```
+
+## Acceptance Criteria Sync
+
+The plugin can sync acceptance criteria between Backlog.md and Jira:
+
+- Backlog.md uses `- [ ] #N criterion` format
+- Jira uses subtasks or checklist custom field (if available)
+- Enable with: `backlog-jira configure --enable-annotations`
+
+## Best Practices
+
+1. **Always pull before pushing**: Avoid conflicts by staying up-to-date
+2. **Use watch mode during active work**: Automatic sync reduces manual steps
+3. **Configure status mappings**: Match your team's Jira workflow
+4. **Handle conflicts promptly**: Don't let conflicting states linger
+5. **Use `backlog-jira status`**: Check sync state before critical operations
+
+## Troubleshooting
+
+### Connection Issues
+```bash
+backlog-jira connect  # Test connection
+backlog-jira doctor   # Check environment
+```
+
+### Sync Issues
+```bash
+backlog-jira status           # View current state
+backlog-jira view <task-id>   # Check specific task
+```
+
+### Reset Configuration
+```bash
+rm -rf .backlog-jira
+backlog-jira init
+```
+
+## Database
+
+The plugin maintains a local SQLite database at `.backlog-jira/jira-sync.db` to track:
+- Sync state for each task
+- Conflict detection via content hashing
+- Last sync timestamps
+
+This database is automatically managed and should not be modified manually.
+<!-- BACKLOG-JIRA GUIDELINES END -->
 
 <!-- BACKLOG.MD GUIDELINES START -->
 # Instructions for the usage of Backlog.md CLI Tool

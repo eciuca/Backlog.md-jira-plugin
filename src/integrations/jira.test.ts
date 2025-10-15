@@ -1,5 +1,5 @@
-import { describe, expect, it, mock } from "bun:test";
-import { JiraClient } from "./jira.ts";
+import { describe, expect, it, mock, beforeEach, afterEach } from "bun:test";
+import { JiraClient, type JiraClientOptions } from "./jira.ts";
 
 describe("JiraClient", () => {
 	describe("searchIssues", () => {
@@ -226,6 +226,113 @@ describe("JiraClient", () => {
 				summary: "New Issue",
 				status: "To Do",
 			});
+		});
+	});
+
+	describe("External MCP Server Configuration", () => {
+		let originalEnv: Record<string, string | undefined>;
+
+		beforeEach(() => {
+			// Save original environment
+			originalEnv = {
+				JIRA_URL: process.env.JIRA_URL,
+				JIRA_USERNAME: process.env.JIRA_USERNAME,
+				JIRA_API_TOKEN: process.env.JIRA_API_TOKEN,
+			};
+
+			// Set test environment
+			process.env.JIRA_URL = "https://test.atlassian.net";
+			process.env.JIRA_USERNAME = "test@example.com";
+			process.env.JIRA_API_TOKEN = "test-token";
+		});
+
+		afterEach(() => {
+			// Restore original environment
+			for (const [key, value] of Object.entries(originalEnv)) {
+				if (value === undefined) {
+					delete process.env[key];
+				} else {
+					process.env[key] = value;
+				}
+			}
+		});
+
+		it("should create client with default Docker configuration", () => {
+			const client = new JiraClient();
+			expect(client).toBeDefined();
+			// Access private fields for testing
+			const clientInternal = client as unknown as {
+				useExternalServer: boolean;
+				dockerImage: string;
+				fallbackToDocker: boolean;
+			};
+			expect(clientInternal.useExternalServer).toBe(false);
+			expect(clientInternal.dockerImage).toBe("ghcr.io/sooperset/mcp-atlassian:latest");
+			expect(clientInternal.fallbackToDocker).toBe(true);
+		});
+
+		it("should create client with external server configuration", () => {
+			const options: JiraClientOptions = {
+				useExternalServer: true,
+				serverCommand: "mcp-atlassian-server",
+				serverArgs: ["--debug"],
+				fallbackToDocker: false,
+			};
+			const client = new JiraClient(options);
+			expect(client).toBeDefined();
+
+			// Access private fields for testing
+			const clientInternal = client as unknown as {
+				useExternalServer: boolean;
+				serverCommand: string;
+				serverArgs: string[];
+				fallbackToDocker: boolean;
+			};
+			expect(clientInternal.useExternalServer).toBe(true);
+			expect(clientInternal.serverCommand).toBe("mcp-atlassian-server");
+			expect(clientInternal.serverArgs).toEqual(["--debug"]);
+			expect(clientInternal.fallbackToDocker).toBe(false);
+		});
+
+		it("should validate credentials correctly", () => {
+			const client = new JiraClient();
+			
+			// Access private method for testing
+			const clientInternal = client as unknown as {
+				validateAndPrepareCredentials(): Record<string, string>;
+			};
+
+			const envVars = clientInternal.validateAndPrepareCredentials();
+			expect(envVars.JIRA_URL).toBe("https://test.atlassian.net");
+			expect(envVars.JIRA_USERNAME).toBe("test@example.com");
+			expect(envVars.JIRA_API_TOKEN).toBe("test-token");
+		});
+
+		it("should throw error for missing JIRA_URL", () => {
+			delete process.env.JIRA_URL;
+			const client = new JiraClient();
+			
+			const clientInternal = client as unknown as {
+				validateAndPrepareCredentials(): Record<string, string>;
+			};
+
+			expect(() => clientInternal.validateAndPrepareCredentials()).toThrow(
+				"Missing JIRA_URL environment variable."
+			);
+		});
+
+		it("should throw error for missing authentication credentials", () => {
+			delete process.env.JIRA_USERNAME;
+			delete process.env.JIRA_API_TOKEN;
+			const client = new JiraClient();
+			
+			const clientInternal = client as unknown as {
+				validateAndPrepareCredentials(): Record<string, string>;
+			};
+
+			expect(() => clientInternal.validateAndPrepareCredentials()).toThrow(
+				"Missing required Jira credentials"
+			);
 		});
 	});
 });
