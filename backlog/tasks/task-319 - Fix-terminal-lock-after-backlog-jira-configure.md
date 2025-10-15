@@ -1,9 +1,10 @@
 ---
 id: task-319
 title: Fix terminal lock after backlog-jira configure
-status: To Do
+status: Done
 assignee: []
 created_date: '2025-10-15 09:42'
+updated_date: '2025-10-15 17:48'
 labels:
   - bug
   - cli
