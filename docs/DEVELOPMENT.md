@@ -153,6 +153,34 @@ Interactive commands that use prompts are harder to test. Consider:
 
 ## Code Quality
 
+### Coding Style Guidelines
+
+#### Split Nested Function Calls for Readability
+
+**Rule**: Avoid nesting constructor calls with function calls on the same line.
+
+**Why**: Makes code harder to debug, read, and understand the execution order.
+
+**Example - WRONG**:
+```typescript
+// ❌ Two method calls on same line - hard to debug
+const jiraClient = new JiraClient(getJiraClientOptions());
+```
+
+**Example - CORRECT**:
+```typescript
+// ✅ Split into separate lines - clear execution order
+const options = getJiraClientOptions();
+const jiraClient = new JiraClient(options);
+```
+
+**Benefits**:
+- Easier to set breakpoints for debugging
+- Clear execution order
+- Intermediate values can be inspected
+- Stack traces are more informative
+- Code is more maintainable
+
 ### Type Checking
 
 ```bash
@@ -193,7 +221,8 @@ import { JiraClient } from "../integrations/jira.ts";
 import { getJiraClientOptions } from "../utils/jira-config.ts";
 
 // Always load configuration to get MCP server args (e.g., DNS settings)
-const jiraClient = new JiraClient(getJiraClientOptions());
+const options = getJiraClientOptions();
+const jiraClient = new JiraClient(options);
 const projects = await jiraClient.getAllProjects();
 await jiraClient.close();  // Always close when done!
 ```
