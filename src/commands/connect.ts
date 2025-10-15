@@ -1,13 +1,13 @@
 import { BacklogClient } from "../integrations/backlog.ts";
-
 import { JiraClient } from "../integrations/jira.ts";
+import { getJiraClientOptions } from "../utils/jira-config.ts";
 import { logger } from "../utils/logger.ts";
 
 export async function connectCommand(): Promise<void> {
 	logger.info("Verifying connections...\n");
 
 	const backlogClient = new BacklogClient();
-	const jiraClient = new JiraClient();
+	const jiraClient = new JiraClient(getJiraClientOptions());
 
 	let allGood = true;
 
@@ -51,3 +51,4 @@ export async function connectCommand(): Promise<void> {
 		process.exit(1);
 	}
 }
+

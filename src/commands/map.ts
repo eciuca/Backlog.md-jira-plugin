@@ -3,6 +3,7 @@ import * as readline from "node:readline/promises";
 import type { Command } from "commander";
 import { BacklogClient } from "../integrations/backlog.ts";
 import { JiraClient } from "../integrations/jira.ts";
+import { getJiraClientOptions } from "../utils/jira-config.ts";
 import { SyncStore } from "../state/store.ts";
 import { getTaskFilePath, updateJiraMetadata } from "../utils/frontmatter.ts";
 import { logger } from "../utils/logger.ts";
@@ -45,7 +46,7 @@ async function autoMap(options: {
 }): Promise<void> {
 	const store = new SyncStore();
 	const backlog = new BacklogClient();
-	const jira = new JiraClient();
+	const jira = new JiraClient(getJiraClientOptions());
 
 	const minScore = options.minScore || 0.7;
 	logger.info({ minScore }, "Starting auto-mapping");
@@ -161,7 +162,7 @@ async function autoMap(options: {
 async function interactiveMap(): Promise<void> {
 	const store = new SyncStore();
 	const backlog = new BacklogClient();
-	const jira = new JiraClient();
+	const jira = new JiraClient(getJiraClientOptions());
 	const rl = readline.createInterface({ input, output });
 
 	try {

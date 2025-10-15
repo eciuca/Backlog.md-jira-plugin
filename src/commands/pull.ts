@@ -1,7 +1,11 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { BacklogClient, type BacklogTask } from "../integrations/backlog.ts";
-import { JiraClient, type JiraIssue } from "../integrations/jira.ts";
+import {
+	JiraClient,
+	type JiraClientOptions,
+	type JiraIssue,
+} from "../integrations/jira.ts";
 import { SyncStore } from "../state/store.ts";
 import { getTaskFilePath, updateJiraMetadata } from "../utils/frontmatter.ts";
 import { logger } from "../utils/logger.ts";
@@ -13,6 +17,7 @@ import {
 } from "../utils/normalizer.ts";
 import { mapJiraStatusToBacklog } from "../utils/status-mapping.ts";
 import { classifySyncState } from "../utils/sync-state.ts";
+import { getJiraClientOptions } from "../utils/jira-config.ts";
 
 export interface PullOptions {
 	taskIds?: string[];
@@ -40,7 +45,7 @@ export async function pull(options: PullOptions = {}): Promise<PullResult> {
 
 	const store = new SyncStore();
 	const backlog = new BacklogClient();
-	const jira = new JiraClient();
+	const jira = new JiraClient(getJiraClientOptions());
 
 	const result: PullResult = {
 		success: true,

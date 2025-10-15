@@ -1,6 +1,7 @@
 import type { Command } from "commander";
 import { BacklogClient } from "../integrations/backlog.ts";
 import { JiraClient } from "../integrations/jira.ts";
+import { getJiraClientOptions } from "../utils/jira-config.ts";
 import { SyncStore } from "../state/store.ts";
 import { logger } from "../utils/logger.ts";
 import {
@@ -31,7 +32,7 @@ async function getStatus(options: {
 }): Promise<void> {
 	const store = new SyncStore();
 	const backlog = new BacklogClient();
-	const jira = new JiraClient();
+	const jira = new JiraClient(getJiraClientOptions());
 
 	try {
 		// Get all mappings
