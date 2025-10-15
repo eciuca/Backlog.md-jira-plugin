@@ -232,19 +232,21 @@ describe("JiraClient", () => {
 	describe("External MCP Server Configuration", () => {
 		let originalEnv: Record<string, string | undefined>;
 
-		beforeEach(() => {
-			// Save original environment
-			originalEnv = {
-				JIRA_URL: process.env.JIRA_URL,
-				JIRA_USERNAME: process.env.JIRA_USERNAME,
-				JIRA_API_TOKEN: process.env.JIRA_API_TOKEN,
-			};
+	beforeEach(() => {
+		// Save original environment
+		originalEnv = {
+			JIRA_URL: process.env.JIRA_URL,
+			JIRA_USERNAME: process.env.JIRA_USERNAME,
+			JIRA_API_TOKEN: process.env.JIRA_API_TOKEN,
+			JIRA_EMAIL: process.env.JIRA_EMAIL,
+			JIRA_PERSONAL_TOKEN: process.env.JIRA_PERSONAL_TOKEN,
+		};
 
-			// Set test environment
-			process.env.JIRA_URL = "https://test.atlassian.net";
-			process.env.JIRA_USERNAME = "test@example.com";
-			process.env.JIRA_API_TOKEN = "test-token";
-		});
+		// Set test environment
+		process.env.JIRA_URL = "https://test.atlassian.net";
+		process.env.JIRA_USERNAME = "test@example.com";
+		process.env.JIRA_API_TOKEN = "test-token";
+	});
 
 		afterEach(() => {
 			// Restore original environment
@@ -321,18 +323,20 @@ describe("JiraClient", () => {
 			);
 		});
 
-		it("should throw error for missing authentication credentials", () => {
-			delete process.env.JIRA_USERNAME;
-			delete process.env.JIRA_API_TOKEN;
-			const client = new JiraClient();
-			
-			const clientInternal = client as unknown as {
-				validateAndPrepareCredentials(): Record<string, string>;
-			};
+	it("should throw error for missing authentication credentials", () => {
+		delete process.env.JIRA_USERNAME;
+		delete process.env.JIRA_API_TOKEN;
+		delete process.env.JIRA_EMAIL;
+		delete process.env.JIRA_PERSONAL_TOKEN;
+		const client = new JiraClient();
+		
+		const clientInternal = client as unknown as {
+			validateAndPrepareCredentials(): Record<string, string>;
+		};
 
-			expect(() => clientInternal.validateAndPrepareCredentials()).toThrow(
-				"Missing required Jira credentials"
-			);
-		});
+		expect(() => clientInternal.validateAndPrepareCredentials()).toThrow(
+			"Missing required Jira credentials"
+		);
+	});
 	});
 });
