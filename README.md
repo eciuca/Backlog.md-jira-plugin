@@ -436,10 +436,53 @@ Tests:
 
 Create and manage task-to-issue mappings.
 
-```bash
-# Interactive mapping
-backlog-jira map
+#### Interactive Mapping
 
+```bash
+# Interactive mapping (auto-discover or manual selection)
+backlog-jira map interactive
+backlog-jira map i  # Short alias
+
+# Auto-map tasks by title similarity
+backlog-jira map auto
+backlog-jira map auto --dry-run        # Preview without creating mappings
+backlog-jira map auto --min-score 0.8  # Set minimum similarity threshold
+```
+
+#### Direct Linking
+
+When you know the exact Jira issue key, use `map link` for fast direct mapping:
+
+```bash
+# Link a task to a Jira issue by key
+backlog-jira map link task-123 PROJ-456
+
+# Overwrite existing mapping with --force
+backlog-jira map link task-123 PROJ-789 --force
+```
+
+**When to use `map link`:**
+- You already know the Jira issue key
+- Faster than interactive selection
+- Useful for scripting and automation
+- Good for bulk mapping operations
+
+**Example workflow:**
+```bash
+# Create a new task
+backlog task create "Implement OAuth authentication"
+# Output: Created task-125
+
+# Link it to existing Jira issue
+backlog-jira map link task-125 AUTH-42
+
+# Start syncing
+backlog-jira sync task-125
+```
+
+#### Mapping Management
+
+```bash
 # View current mappings
 backlog-jira map --list
 
