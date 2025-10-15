@@ -210,11 +210,157 @@ export async function configureCommand(
 			process.exit(0);
 		}
 
-		jiraPersonalToken = patResponse.pat;
+	jiraPersonalToken = patResponse.pat;
 	}
 
-	// Step 4: Test connection
-	console.log(chalk.bold.green("\n\nStep 4: Testing Connection"));
+	// Step 4: MCP Server Configuration (Optional)
+	console.log(chalk.bold.green("\n\nStep 4: MCP Server Configuration (Optional)"));
+	console.log(
+		chalk.gray(
+			"Configure additional arguments and environment variables for the MCP server.\n",
+		),
+	);
+
+	const mcpEnvVars: Record<string, string> = {};
+	const mcpServerArgs: string[] = [];
+
+	// First ask about server arguments
+	const useMcpArgsResponse = await prompts({
+		type: "confirm",
+		name: "useMcpArgs",
+		message: "Do you want to configure MCP server arguments (e.g., Docker options like --dns)?",
+		initial: false,
+	});
+
+	if (useMcpArgsResponse.useMcpArgs === undefined) {
+		console.log(chalk.yellow("\n✗ Configuration cancelled.\n"));
+		process.exit(0);
+	}
+
+	if (useMcpArgsResponse.useMcpArgs) {
+		console.log(chalk.cyan("\nEnter server arguments one by one."));
+		console.log(chalk.gray("Examples: --dns 8.8.8.8, --dns-search company.com"));
+		console.log(chalk.gray("Leave empty to finish.\n"));
+
+		let addingArgs = true;
+		while (addingArgs) {
+			const argResponse = await prompts({
+				type: "text",
+				name: "arg",
+				message: "Server argument:",
+			});
+
+			if (argResponse.arg === undefined) {
+				console.log(chalk.yellow("\n✗ Configuration cancelled.\n"));
+				process.exit(0);
+			}
+
+			const arg = argResponse.arg.trim();
+
+			// Empty arg means done
+			if (arg === "") {
+				addingArgs = false;
+				continue;
+			}
+
+			mcpServerArgs.push(arg);
+			console.log(chalk.green(`  ✓ Added argument: ${arg}\n`));
+		}
+
+		if (mcpServerArgs.length > 0) {
+			console.log(chalk.cyan("\nConfigured server arguments:"));
+			for (const arg of mcpServerArgs) {
+				console.log(chalk.gray(`  ${arg}`));
+			}
+			console.log();
+		}
+	}
+
+	// Then ask about environment variables
+	const useMcpEnvResponse = await prompts({
+		type: "confirm",
+		name: "useMcpEnv",
+		message: "Do you want to configure additional MCP server environment variables?",
+		initial: false,
+	});
+
+	if (useMcpEnvResponse.useMcpEnv === undefined) {
+		console.log(chalk.yellow("\n✗ Configuration cancelled.\n"));
+		process.exit(0);
+	}
+
+	if (useMcpEnvResponse.useMcpEnv) {
+		console.log(chalk.cyan("\nEnter key-value pairs for environment variables."));
+		console.log(chalk.gray("Leave the key empty to finish.\n"));
+
+		let addingVars = true;
+		while (addingVars) {
+			const keyResponse = await prompts({
+				type: "text",
+				name: "key",
+				message: "Environment variable name:",
+				validate: (value) => {
+					// Empty means done
+					if (value.trim() === "") {
+						return true;
+					}
+					// Check for valid env var name
+					if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(value)) {
+						return "Invalid variable name. Use only letters, numbers, and underscores.";
+					}
+					// Check if already exists
+					if (mcpEnvVars[value]) {
+						return "This variable already exists.";
+					}
+					return true;
+				},
+			});
+
+			if (keyResponse.key === undefined) {
+				console.log(chalk.yellow("\n✗ Configuration cancelled.\n"));
+				process.exit(0);
+			}
+
+			const key = keyResponse.key.trim();
+
+			// Empty key means done
+			if (key === "") {
+				addingVars = false;
+				continue;
+			}
+
+			const valueResponse = await prompts({
+				type: "text",
+				name: "value",
+				message: `Value for ${key}:`,
+				validate: (value) => {
+					if (value === undefined || value === null) {
+						return "Value is required";
+					}
+					return true;
+				},
+			});
+
+			if (valueResponse.value === undefined) {
+				console.log(chalk.yellow("\n✗ Configuration cancelled.\n"));
+				process.exit(0);
+			}
+
+			mcpEnvVars[key] = valueResponse.value;
+			console.log(chalk.green(`  ✓ Added ${key}\n`));
+		}
+
+		if (Object.keys(mcpEnvVars).length > 0) {
+			console.log(chalk.cyan("\nConfigured environment variables:"));
+			for (const [key, value] of Object.entries(mcpEnvVars)) {
+				console.log(chalk.gray(`  ${key}: ${"*".repeat(Math.min(value.length, 20))}`));
+			}
+			console.log();
+		}
+	}
+
+	// Step 5: Test connection
+	console.log(chalk.bold.green("\n\nStep 5: Testing Connection"));
 	console.log(chalk.gray("Validating credentials by connecting to Jira...\n"));
 
 	// Temporarily set environment variables for testing
@@ -236,11 +382,19 @@ export async function configureCommand(
 		process.env.JIRA_API_TOKEN = undefined;
 	}
 
+	// Apply MCP environment variables for testing
+	for (const [key, value] of Object.entries(mcpEnvVars)) {
+		process.env[key] = value;
+	}
+
 	let connectionOk = false;
 	let availableProjects: JiraProjectInfo[] = [];
 
 	try {
-		const jiraClient = new JiraClient();
+		// Pass MCP server arguments to JiraClient for testing
+		const jiraClient = new JiraClient({
+			dockerArgs: mcpServerArgs,
+		});
 		connectionOk = await jiraClient.test();
 
 		if (connectionOk) {
@@ -249,7 +403,9 @@ export async function configureCommand(
 			// Fetch available projects
 			try {
 				// Create a new client for fetching projects since test() closes the connection
-				const projectsClient = new JiraClient();
+				const projectsClient = new JiraClient({
+					dockerArgs: mcpServerArgs,
+				});
 				const projects = await projectsClient.getAllProjects();
 				availableProjects = projects;
 				await projectsClient.close();
@@ -277,8 +433,8 @@ export async function configureCommand(
 		process.exit(1);
 	}
 
-	// Step 5: Project selection
-	console.log(chalk.bold.green("\nStep 5: Project Selection"));
+	// Step 6: Project selection
+	console.log(chalk.bold.green("\nStep 6: Project Selection"));
 	console.log(chalk.gray("Select or enter the Jira project key.\n"));
 
 	let projectKey = "";
@@ -362,8 +518,8 @@ export async function configureCommand(
 
 	projectKey = projectKey.trim().toUpperCase();
 
-	// Step 6: Issue type
-	console.log(chalk.bold.green("\n\nStep 6: Issue Type"));
+	// Step 7: Issue type
+	console.log(chalk.bold.green("\n\nStep 7: Issue Type"));
 	console.log(chalk.gray("What type of issues should be synced?\n"));
 
 	// TODO: In the future, we could fetch available issue types from the project
@@ -409,8 +565,8 @@ export async function configureCommand(
 		finalIssueType = typeResponse.type;
 	}
 
-	// Step 7: JQL Filter (optional)
-	console.log(chalk.bold.green("\n\nStep 7: JQL Filter (Optional)"));
+	// Step 8: JQL Filter (optional)
+	console.log(chalk.bold.green("\n\nStep 8: JQL Filter (Optional)"));
 	console.log(
 		chalk.gray("Add a JQL filter to limit which issues are synced.\n"),
 	);
@@ -444,8 +600,8 @@ export async function configureCommand(
 		jqlFilter = filterResponse.filter;
 	}
 
-	// Step 8: Status mapping
-	console.log(chalk.bold.green("\n\nStep 8: Status Mapping"));
+	// Step 9: Status mapping
+	console.log(chalk.bold.green("\n\nStep 9: Status Mapping"));
 	console.log(chalk.gray("Map Backlog.md statuses to Jira statuses.\n"));
 
 	const mappingResponse = await prompts({
@@ -482,8 +638,8 @@ export async function configureCommand(
 		);
 	}
 
-	// Step 9: Conflict resolution strategy
-	console.log(chalk.bold.green("\n\nStep 9: Conflict Resolution Strategy"));
+	// Step 10: Conflict resolution strategy
+	console.log(chalk.bold.green("\n\nStep 10: Conflict Resolution Strategy"));
 	console.log(chalk.gray("How should conflicts be handled during sync?\n"));
 
 	const conflictStrategyResponse = await prompts({
@@ -520,8 +676,8 @@ export async function configureCommand(
 		| "prefer-backlog"
 		| "prefer-jira";
 
-	// Step 10: Save configuration
-	console.log(chalk.bold.green("\n\nStep 10: Save Configuration"));
+	// Step 11: Save configuration
+	console.log(chalk.bold.green("\n\nStep 11: Save Configuration"));
 	console.log(chalk.gray("Review and save your configuration.\n"));
 
 	// Display configuration summary
@@ -583,6 +739,17 @@ export async function configureCommand(
 		},
 	};
 
+	// Add MCP configuration if server args or env vars were configured
+	if (mcpServerArgs.length > 0 || Object.keys(mcpEnvVars).length > 0) {
+		config.mcp = {};
+		if (mcpServerArgs.length > 0) {
+			config.mcp.serverArgs = mcpServerArgs;
+		}
+		if (Object.keys(mcpEnvVars).length > 0) {
+			config.mcp.envVars = mcpEnvVars;
+		}
+	}
+
 	writeFileSync(configPath, JSON.stringify(config, null, 2));
 	console.log(chalk.green(`✓ Configuration saved to ${configPath}`));
 
@@ -625,6 +792,14 @@ export async function configureCommand(
 			envContent += `JIRA_API_TOKEN=${jiraApiToken}\n`;
 		} else {
 			envContent += `JIRA_PERSONAL_TOKEN=${jiraPersonalToken}\n`;
+		}
+
+		// Add MCP environment variables if configured
+		if (Object.keys(mcpEnvVars).length > 0) {
+			envContent += "\n# MCP Server Environment Variables\n";
+			for (const [key, value] of Object.entries(mcpEnvVars)) {
+				envContent += `${key}=${value}\n`;
+			}
 		}
 
 		writeFileSync(envPath, envContent);

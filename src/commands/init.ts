@@ -24,6 +24,10 @@ export interface JiraConfig {
 		enableAnnotations: boolean;
 		watchInterval: number;
 	};
+	mcp?: {
+		serverArgs?: string[];
+		envVars?: Record<string, string>;
+	};
 }
 
 export async function initCommand(): Promise<void> {
@@ -79,15 +83,14 @@ export async function initCommand(): Promise<void> {
 `,
 	);
 
+	// Agent instructions setup
+	await setupAgentInstructions();
+
+	logger.info("");
 	logger.info("✓ Initialized .backlog-jira/ configuration");
 	logger.info(`  - Config: ${configPath}`);
 	logger.info(`  - Database: ${join(configDir, "jira-sync.db")}`);
 	logger.info(`  - Logs: ${join(configDir, "logs/")}`);
-	logger.info("");
-
-	// Agent instructions setup
-	await setupAgentInstructions();
-
 	logger.info("");
 	logger.info("Next steps:");
 	logger.info(
