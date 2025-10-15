@@ -857,6 +857,9 @@ This plugin follows Backlog.md's plugin architecture. When contributing:
 4. **Test thoroughly**: Add tests for new features
 5. **Document changes**: Update README and relevant docs
 
+**📚 For detailed development guidelines, see [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)**  
+Includes critical information about working with prompts, command structure, and common pitfalls.
+
 ## Benefits
 
 ### Why Use This Plugin?

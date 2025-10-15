@@ -865,4 +865,8 @@ export async function configureCommand(
 
 	// Restore original environment (keeping the new values)
 	// This ensures the process continues with the new configuration
+
+	// Exit cleanly to return control to the terminal
+	// Without this, the prompts library keeps stdin open and the terminal hangs
+	process.exit(0);
 }
