@@ -3,9 +3,9 @@ import * as readline from "node:readline/promises";
 import type { Command } from "commander";
 import { BacklogClient } from "../integrations/backlog.ts";
 import { JiraClient } from "../integrations/jira.ts";
-import { getJiraClientOptions } from "../utils/jira-config.ts";
 import { SyncStore } from "../state/store.ts";
 import { getTaskFilePath, updateJiraMetadata } from "../utils/frontmatter.ts";
+import { getJiraClientOptions } from "../utils/jira-config.ts";
 import { logger } from "../utils/logger.ts";
 import {
 	computeHash,
@@ -344,7 +344,11 @@ async function linkTask(
 				);
 				console.log("   Use --force to overwrite the existing mapping");
 				logger.warn(
-					{ taskId, existingJiraKey: existingMapping.jiraKey, newJiraKey: jiraKey },
+					{
+						taskId,
+						existingJiraKey: existingMapping.jiraKey,
+						newJiraKey: jiraKey,
+					},
 					"Mapping already exists",
 				);
 				throw new Error(
@@ -424,13 +428,15 @@ export function registerMapCommand(program: Command): void {
 		.argument("<taskId>", "Backlog task ID (e.g., task-123)")
 		.argument("<jiraKey>", "Jira issue key (e.g., PROJ-456)")
 		.option("--force", "Overwrite existing mapping if present")
-		.action(async (taskId: string, jiraKey: string, options: { force?: boolean }) => {
-			try {
-				await linkTask(taskId, jiraKey, options);
-			} catch (error) {
-				logger.error({ error }, "Link command failed");
-				console.error(`Error: ${error}`);
-				process.exit(1);
-			}
-		});
+		.action(
+			async (taskId: string, jiraKey: string, options: { force?: boolean }) => {
+				try {
+					await linkTask(taskId, jiraKey, options);
+				} catch (error) {
+					logger.error({ error }, "Link command failed");
+					console.error(`Error: ${error}`);
+					process.exit(1);
+				}
+			},
+		);
 }

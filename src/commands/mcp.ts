@@ -1,8 +1,8 @@
 import { spawn } from "node:child_process";
-import { readFileSync, existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { Command } from "commander";
 import chalk from "chalk";
+import type { Command } from "commander";
 import { logger } from "../utils/logger.ts";
 import type { JiraConfig } from "./init.ts";
 
@@ -63,7 +63,9 @@ export function registerMcpCommand(program: Command): void {
 /**
  * Start MCP Atlassian server command implementation
  */
-export async function mcpStartCommand(options: McpStartOptions = {}): Promise<void> {
+export async function mcpStartCommand(
+	options: McpStartOptions = {},
+): Promise<void> {
 	if (options.debug) {
 		console.log(chalk.cyan("🚀 Starting MCP Atlassian server..."));
 		console.log(chalk.gray("Debug mode enabled\n"));
@@ -77,7 +79,8 @@ export async function mcpStartCommand(options: McpStartOptions = {}): Promise<vo
 
 	// Merge DNS options from CLI flags and config
 	const dnsServers = options.dnsServers || config.dnsServers || [];
-	const dnsSearchDomains = options.dnsSearchDomains || config.dnsSearchDomains || [];
+	const dnsSearchDomains =
+		options.dnsSearchDomains || config.dnsSearchDomains || [];
 
 	if (options.debug && (dnsServers.length > 0 || dnsSearchDomains.length > 0)) {
 		console.log(chalk.yellow("DNS Configuration:"));
@@ -85,7 +88,9 @@ export async function mcpStartCommand(options: McpStartOptions = {}): Promise<vo
 			console.log(chalk.gray(`  Servers: ${dnsServers.join(", ")}`));
 		}
 		if (dnsSearchDomains.length > 0) {
-			console.log(chalk.gray(`  Search domains: ${dnsSearchDomains.join(", ")}`));
+			console.log(
+				chalk.gray(`  Search domains: ${dnsSearchDomains.join(", ")}`),
+			);
 		}
 		console.log();
 	}
@@ -93,17 +98,28 @@ export async function mcpStartCommand(options: McpStartOptions = {}): Promise<vo
 	// Try external server first if configured
 	if (config.useExternalServer !== false) {
 		try {
-			await startExternalServer(config, envVars, dnsServers, dnsSearchDomains, options.debug);
+			await startExternalServer(
+				config,
+				envVars,
+				dnsServers,
+				dnsSearchDomains,
+				options.debug,
+			);
 			return;
 		} catch (error) {
 			if (options.debug) {
-				console.log(chalk.yellow("External server failed:", error instanceof Error ? error.message : String(error)));
+				console.log(
+					chalk.yellow(
+						"External server failed:",
+						error instanceof Error ? error.message : String(error),
+					),
+				);
 			}
-			
+
 			if (!config.fallbackToDocker) {
 				throw error;
 			}
-			
+
 			if (options.debug) {
 				console.log(chalk.yellow("Falling back to Docker...\n"));
 			}
@@ -111,13 +127,22 @@ export async function mcpStartCommand(options: McpStartOptions = {}): Promise<vo
 	}
 
 	// Use Docker approach (either as primary or fallback)
-	await startDockerServer(config, envVars, dnsServers, dnsSearchDomains, options.debug, options.verbose);
+	await startDockerServer(
+		config,
+		envVars,
+		dnsServers,
+		dnsSearchDomains,
+		options.debug,
+		options.verbose,
+	);
 }
 
 /**
  * Validate credentials and prepare environment variables
  */
-function validateAndPrepareCredentials(debug?: boolean): Record<string, string> {
+function validateAndPrepareCredentials(
+	debug?: boolean,
+): Record<string, string> {
 	const jiraUrl = process.env.JIRA_URL;
 	const jiraUsername = process.env.JIRA_EMAIL || process.env.JIRA_USERNAME;
 	const jiraApiToken = process.env.JIRA_API_TOKEN;
@@ -134,8 +159,8 @@ function validateAndPrepareCredentials(debug?: boolean): Record<string, string> 
 	if (!hasApiTokenAuth && !hasPersonalTokenAuth) {
 		throw new Error(
 			"Missing required Jira credentials. Please set either:\n" +
-			"  - For Jira Cloud: JIRA_URL, JIRA_EMAIL (or JIRA_USERNAME), and JIRA_API_TOKEN\n" +
-			"  - For Jira Server/Data Center: JIRA_URL and JIRA_PERSONAL_TOKEN",
+				"  - For Jira Cloud: JIRA_URL, JIRA_EMAIL (or JIRA_USERNAME), and JIRA_API_TOKEN\n" +
+				"  - For Jira Server/Data Center: JIRA_URL and JIRA_PERSONAL_TOKEN",
 		);
 	}
 
@@ -195,15 +220,27 @@ function loadMcpConfiguration(debug?: boolean): McpConfig {
 		if (debug) {
 			console.log(chalk.green("✓ Loaded configuration from config.json"));
 			console.log(chalk.gray(`  Server command: ${mcpConfig.serverCommand}`));
-			console.log(chalk.gray(`  Server args: [${mcpConfig.serverArgs?.join(", ") || ""}]`));
-			console.log(chalk.gray(`  Use external server: ${mcpConfig.useExternalServer}`));
-			console.log(chalk.gray(`  Fallback to Docker: ${mcpConfig.fallbackToDocker}`));
+			console.log(
+				chalk.gray(
+					`  Server args: [${mcpConfig.serverArgs?.join(", ") || ""}]`,
+				),
+			);
+			console.log(
+				chalk.gray(`  Use external server: ${mcpConfig.useExternalServer}`),
+			);
+			console.log(
+				chalk.gray(`  Fallback to Docker: ${mcpConfig.fallbackToDocker}`),
+			);
 		}
 
 		return mcpConfig;
 	} catch (error) {
 		if (debug) {
-			console.log(chalk.yellow(`⚠ Failed to load config: ${error instanceof Error ? error.message : String(error)}`));
+			console.log(
+				chalk.yellow(
+					`⚠ Failed to load config: ${error instanceof Error ? error.message : String(error)}`,
+				),
+			);
 			console.log(chalk.yellow("Using default configuration"));
 		}
 		return defaultConfig;
@@ -230,7 +267,12 @@ async function startExternalServer(
 	}
 
 	// Apply DNS configuration if specified
-	const processEnv = applyDnsConfiguration(envVars, dnsServers, dnsSearchDomains, debug);
+	const processEnv = applyDnsConfiguration(
+		envVars,
+		dnsServers,
+		dnsSearchDomains,
+		debug,
+	);
 
 	return new Promise((resolve, reject) => {
 		const child = spawn(serverCommand, serverArgs, {
@@ -257,7 +299,9 @@ async function startExternalServer(
 		// Handle process termination
 		child.on("close", (code, signal) => {
 			if (debug) {
-				console.log(chalk.yellow(`MCP server closed with code ${code}, signal ${signal}`));
+				console.log(
+					chalk.yellow(`MCP server closed with code ${code}, signal ${signal}`),
+				);
 			}
 			process.exit(code || 0);
 		});
@@ -272,7 +316,9 @@ async function startExternalServer(
 
 		process.on("SIGTERM", () => {
 			if (debug) {
-				console.log(chalk.yellow("Received SIGTERM, terminating MCP server..."));
+				console.log(
+					chalk.yellow("Received SIGTERM, terminating MCP server..."),
+				);
 			}
 			child.kill("SIGTERM");
 		});
@@ -354,7 +400,11 @@ async function startDockerServer(
 		// Handle process termination
 		child.on("close", (code, signal) => {
 			if (debug) {
-				console.log(chalk.yellow(`Docker MCP server closed with code ${code}, signal ${signal}`));
+				console.log(
+					chalk.yellow(
+						`Docker MCP server closed with code ${code}, signal ${signal}`,
+					),
+				);
 			}
 			process.exit(code || 0);
 		});
@@ -362,14 +412,18 @@ async function startDockerServer(
 		// Handle parent process signals
 		process.on("SIGINT", () => {
 			if (debug) {
-				console.log(chalk.yellow("Received SIGINT, terminating Docker server..."));
+				console.log(
+					chalk.yellow("Received SIGINT, terminating Docker server..."),
+				);
 			}
 			child.kill("SIGINT");
 		});
 
 		process.on("SIGTERM", () => {
 			if (debug) {
-				console.log(chalk.yellow("Received SIGTERM, terminating Docker server..."));
+				console.log(
+					chalk.yellow("Received SIGTERM, terminating Docker server..."),
+				);
 			}
 			child.kill("SIGTERM");
 		});
@@ -382,8 +436,8 @@ async function startDockerServer(
 
 /**
  * Apply DNS configuration to environment variables
- * 
- * Note: This is a simplified approach. Real DNS configuration depends on the OS and 
+ *
+ * Note: This is a simplified approach. Real DNS configuration depends on the OS and
  * may require additional system-level changes or containerization for full isolation.
  * This implementation documents the limitation while providing basic environment setup.
  */
@@ -399,25 +453,43 @@ function applyDnsConfiguration(
 	if (dnsServers.length > 0) {
 		result.DNS_SERVERS = dnsServers.join(",");
 		result.NAMESERVER = dnsServers[0]; // Primary nameserver
-		
+
 		if (debug) {
 			console.log(chalk.yellow("DNS Configuration Applied:"));
-			console.log(chalk.gray(`  Environment variable DNS_SERVERS set to: ${result.DNS_SERVERS}`));
-			console.log(chalk.gray("  Note: DNS changes depend on application support and OS configuration"));
+			console.log(
+				chalk.gray(
+					`  Environment variable DNS_SERVERS set to: ${result.DNS_SERVERS}`,
+				),
+			);
+			console.log(
+				chalk.gray(
+					"  Note: DNS changes depend on application support and OS configuration",
+				),
+			);
 		}
 	}
 
 	if (dnsSearchDomains.length > 0) {
 		result.DNS_SEARCH_DOMAINS = dnsSearchDomains.join(",");
-		
+
 		if (debug) {
-			console.log(chalk.gray(`  Environment variable DNS_SEARCH_DOMAINS set to: ${result.DNS_SEARCH_DOMAINS}`));
+			console.log(
+				chalk.gray(
+					`  Environment variable DNS_SEARCH_DOMAINS set to: ${result.DNS_SEARCH_DOMAINS}`,
+				),
+			);
 		}
 	}
 
 	if (debug && (dnsServers.length > 0 || dnsSearchDomains.length > 0)) {
-		console.log(chalk.yellow("  Limitation: Full DNS resolution changes may require system-level configuration"));
-		console.log(chalk.yellow("  or running within a container with custom DNS settings."));
+		console.log(
+			chalk.yellow(
+				"  Limitation: Full DNS resolution changes may require system-level configuration",
+			),
+		);
+		console.log(
+			chalk.yellow("  or running within a container with custom DNS settings."),
+		);
 		console.log();
 	}
 

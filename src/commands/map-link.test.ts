@@ -1,4 +1,4 @@
-import { describe, expect, it, mock, beforeEach } from "bun:test";
+import { beforeEach, describe, expect, it, mock } from "bun:test";
 
 // Mock clients and store
 const mockBacklogClient = {
@@ -222,7 +222,7 @@ describe("map link command", () => {
 			});
 
 			const existingMapping = mockStore.getMapping(taskId);
-			
+
 			if (existingMapping && force) {
 				// Should be allowed to overwrite
 				mockStore.addMapping(taskId, newJiraKey);

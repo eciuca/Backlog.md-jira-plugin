@@ -1,5 +1,5 @@
-import prompts from "prompts";
 import chalk from "chalk";
+import prompts from "prompts";
 import type { Conflict, FieldConflict } from "../commands/sync.ts";
 
 export interface ResolutionChoice {

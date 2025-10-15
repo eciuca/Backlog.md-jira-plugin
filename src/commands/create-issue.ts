@@ -18,6 +18,8 @@ export interface CreateIssueOptions {
 	taskId: string;
 	issueType?: string;
 	dryRun?: boolean;
+	configDir?: string;
+	dbPath?: string;
 }
 
 export interface CreateIssueResult {
@@ -35,9 +37,9 @@ export async function createIssue(
 ): Promise<CreateIssueResult> {
 	logger.info({ options }, "Starting create-issue operation");
 
-	const { taskId, issueType, dryRun } = options;
+	const { taskId, issueType, dryRun, dbPath } = options;
 
-	const store = new SyncStore();
+	const store = new SyncStore(dbPath);
 	const backlog = new BacklogClient();
 	const jira = new JiraClient(getJiraClientOptions());
 
@@ -71,7 +73,7 @@ export async function createIssue(
 		}
 
 		// Load configuration
-		const config = loadConfig();
+		const config = loadConfig(options.configDir);
 		const projectKey = config.jira?.projectKey;
 		const defaultIssueType = config.jira?.issueType || "Task";
 		const finalIssueType = issueType || defaultIssueType;
@@ -100,7 +102,9 @@ export async function createIssue(
 			console.log(`  Project: ${projectKey}`);
 			console.log(`  Issue Type: ${finalIssueType}`);
 			console.log(`  Summary: ${issueData.summary}`);
-			console.log(`  Description: ${issueData.description?.substring(0, 100)}...`);
+			console.log(
+				`  Description: ${issueData.description?.substring(0, 100)}...`,
+			);
 			console.log(`  Status: ${issueData.status || "Default"}`);
 			console.log(`  Assignee: ${issueData.assignee || "Unassigned"}`);
 			console.log(`  Priority: ${issueData.priority || "Default"}`);
@@ -113,7 +117,10 @@ export async function createIssue(
 		}
 
 		// Create Jira issue
-		logger.info({ taskId, projectKey, issueType: finalIssueType }, "Creating Jira issue");
+		logger.info(
+			{ taskId, projectKey, issueType: finalIssueType },
+			"Creating Jira issue",
+		);
 		const createdIssue = await jira.createIssue(
 			projectKey,
 			finalIssueType,
@@ -133,12 +140,25 @@ export async function createIssue(
 
 		// Create mapping
 		store.addMapping(taskId, createdIssue.key);
-		logger.debug({ taskId, jiraKey: createdIssue.key }, "Created task-Jira mapping");
+		logger.debug(
+			{ taskId, jiraKey: createdIssue.key },
+			"Created task-Jira mapping",
+		);
 
 		// Create initial snapshots
 		const backlogHash = computeHash(normalizeBacklogTask(task));
-		store.setSnapshot(taskId, "backlog", backlogHash, normalizeBacklogTask(task));
-		store.setSnapshot(taskId, "jira", backlogHash, normalizeJiraIssue(createdIssue));
+		store.setSnapshot(
+			taskId,
+			"backlog",
+			backlogHash,
+			normalizeBacklogTask(task),
+		);
+		store.setSnapshot(
+			taskId,
+			"jira",
+			backlogHash,
+			normalizeJiraIssue(createdIssue),
+		);
 		logger.debug({ taskId }, "Created initial snapshots");
 
 		// Update sync state
@@ -254,7 +274,7 @@ function buildJiraIssueFromBacklogTask(task: BacklogTask): {
 /**
  * Load configuration from .backlog-jira/config.json
  */
-function loadConfig(): {
+function loadConfig(configDir?: string): {
 	jira?: {
 		baseUrl?: string;
 		projectKey?: string;
@@ -262,7 +282,8 @@ function loadConfig(): {
 	};
 } {
 	try {
-		const configPath = join(process.cwd(), ".backlog-jira", "config.json");
+		const baseDir = configDir || join(process.cwd(), ".backlog-jira");
+		const configPath = join(baseDir, "config.json");
 		const content = readFileSync(configPath, "utf-8");
 		return JSON.parse(content);
 	} catch (error) {

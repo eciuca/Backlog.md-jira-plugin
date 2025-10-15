@@ -1,16 +1,22 @@
-import { test, expect, describe, beforeEach, afterEach, mock } from "bun:test";
+import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
+import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { writeFileSync, mkdirSync, existsSync, rmSync } from "node:fs";
+import { cleanupDir, uniqueTestDir } from "../../test/helpers/fs.ts";
 
-// Test configuration directory
-const TEST_CONFIG_DIR = join(process.cwd(), ".test-backlog-jira");
-const TEST_CONFIG_PATH = join(TEST_CONFIG_DIR, "config.json");
+// Test configuration directory - will be set per test
+let TEST_CONFIG_DIR: string;
+let TEST_CONFIG_PATH: string;
 
 // We'll test by importing and calling the validation and configuration functions
 describe("MCP Command Unit Tests", () => {
 	let originalEnv: Record<string, string | undefined>;
 
 	beforeEach(() => {
+		// Create unique test directory
+		const testDir = uniqueTestDir("mcp-test");
+		TEST_CONFIG_DIR = join(testDir, ".backlog-jira");
+		TEST_CONFIG_PATH = join(TEST_CONFIG_DIR, "config.json");
+
 		// Save original environment
 		originalEnv = {
 			JIRA_URL: process.env.JIRA_URL,
@@ -19,11 +25,6 @@ describe("MCP Command Unit Tests", () => {
 			JIRA_API_TOKEN: process.env.JIRA_API_TOKEN,
 			JIRA_PERSONAL_TOKEN: process.env.JIRA_PERSONAL_TOKEN,
 		};
-
-		// Clean up test directory
-		if (existsSync(TEST_CONFIG_DIR)) {
-			rmSync(TEST_CONFIG_DIR, { recursive: true });
-		}
 
 		// Create test config directory
 		mkdirSync(TEST_CONFIG_DIR, { recursive: true });
@@ -40,9 +41,8 @@ describe("MCP Command Unit Tests", () => {
 		}
 
 		// Clean up test directory
-		if (existsSync(TEST_CONFIG_DIR)) {
-			rmSync(TEST_CONFIG_DIR, { recursive: true });
-		}
+		const testDir = join(TEST_CONFIG_DIR, "..");
+		cleanupDir(testDir);
 	});
 
 	describe("Environment Variable Validation", () => {
@@ -51,7 +51,7 @@ describe("MCP Command Unit Tests", () => {
 			// For now, we'll test the public interface
 
 			// Remove JIRA_URL
-			delete process.env.JIRA_URL;
+			process.env.JIRA_URL = undefined;
 
 			// Since we can't import the internal function easily, we'll test via the command
 			// but expect it to throw during validation
@@ -66,13 +66,14 @@ describe("MCP Command Unit Tests", () => {
 
 		test("should validate authentication credentials are present", () => {
 			process.env.JIRA_URL = "https://test.atlassian.net";
-			delete process.env.JIRA_EMAIL;
-			delete process.env.JIRA_API_TOKEN;
-			delete process.env.JIRA_PERSONAL_TOKEN;
+			process.env.JIRA_EMAIL = undefined;
+			process.env.JIRA_API_TOKEN = undefined;
+			process.env.JIRA_PERSONAL_TOKEN = undefined;
 
 			expect(() => {
 				const jiraUrl = process.env.JIRA_URL;
-				const jiraUsername = process.env.JIRA_EMAIL || process.env.JIRA_USERNAME;
+				const jiraUsername =
+					process.env.JIRA_EMAIL || process.env.JIRA_USERNAME;
 				const jiraApiToken = process.env.JIRA_API_TOKEN;
 				const jiraPersonalToken = process.env.JIRA_PERSONAL_TOKEN;
 
@@ -86,8 +87,8 @@ describe("MCP Command Unit Tests", () => {
 				if (!hasApiTokenAuth && !hasPersonalTokenAuth) {
 					throw new Error(
 						"Missing required Jira credentials. Please set either:\n" +
-						"  - For Jira Cloud: JIRA_URL, JIRA_EMAIL (or JIRA_USERNAME), and JIRA_API_TOKEN\n" +
-						"  - For Jira Server/Data Center: JIRA_URL and JIRA_PERSONAL_TOKEN",
+							"  - For Jira Cloud: JIRA_URL, JIRA_EMAIL (or JIRA_USERNAME), and JIRA_API_TOKEN\n" +
+							"  - For Jira Server/Data Center: JIRA_URL and JIRA_PERSONAL_TOKEN",
 					);
 				}
 			}).toThrow("Missing required Jira credentials");
@@ -97,11 +98,12 @@ describe("MCP Command Unit Tests", () => {
 			process.env.JIRA_URL = "https://test.atlassian.net";
 			process.env.JIRA_EMAIL = "test@example.com";
 			process.env.JIRA_API_TOKEN = "test-token";
-			delete process.env.JIRA_PERSONAL_TOKEN;
+			process.env.JIRA_PERSONAL_TOKEN = undefined;
 
 			expect(() => {
 				const jiraUrl = process.env.JIRA_URL;
-				const jiraUsername = process.env.JIRA_EMAIL || process.env.JIRA_USERNAME;
+				const jiraUsername =
+					process.env.JIRA_EMAIL || process.env.JIRA_USERNAME;
 				const jiraApiToken = process.env.JIRA_API_TOKEN;
 				const jiraPersonalToken = process.env.JIRA_PERSONAL_TOKEN;
 
@@ -124,12 +126,13 @@ describe("MCP Command Unit Tests", () => {
 		test("should accept Personal Access Token authentication", () => {
 			process.env.JIRA_URL = "https://jira.company.com";
 			process.env.JIRA_PERSONAL_TOKEN = "test-pat";
-			delete process.env.JIRA_EMAIL;
-			delete process.env.JIRA_API_TOKEN;
+			process.env.JIRA_EMAIL = undefined;
+			process.env.JIRA_API_TOKEN = undefined;
 
 			expect(() => {
 				const jiraUrl = process.env.JIRA_URL;
-				const jiraUsername = process.env.JIRA_EMAIL || process.env.JIRA_USERNAME;
+				const jiraUsername =
+					process.env.JIRA_EMAIL || process.env.JIRA_USERNAME;
 				const jiraApiToken = process.env.JIRA_API_TOKEN;
 				const jiraPersonalToken = process.env.JIRA_PERSONAL_TOKEN;
 
@@ -153,7 +156,8 @@ describe("MCP Command Unit Tests", () => {
 	describe("Configuration Loading", () => {
 		test("should handle missing config.json gracefully", () => {
 			// Test that the system works without a config file
-			const configDir = join(process.cwd().replace("/.test-backlog-jira", ""), ".backlog-jira");
+			const testDir = join(TEST_CONFIG_DIR, "..");
+			const configDir = join(testDir, ".backlog-jira");
 			const configPath = join(configDir, "config.json");
 
 			// Simulate loading default config when file doesn't exist
@@ -186,7 +190,7 @@ describe("MCP Command Unit Tests", () => {
 					statusMapping: {
 						"To Do": ["To Do"],
 						"In Progress": ["In Progress"],
-						"Done": ["Done"],
+						Done: ["Done"],
 					},
 				},
 				sync: {
@@ -208,7 +212,10 @@ describe("MCP Command Unit Tests", () => {
 
 			// Simulate config loading
 			try {
-				const configContent = require("fs").readFileSync(TEST_CONFIG_PATH, "utf-8");
+				const configContent = require("node:fs").readFileSync(
+					TEST_CONFIG_PATH,
+					"utf-8",
+				);
 				const config = JSON.parse(configContent);
 
 				const defaultMcpConfig = {
@@ -240,9 +247,18 @@ describe("MCP Command Unit Tests", () => {
 		test("should merge CLI DNS options with config", () => {
 			// Create test config with DNS settings
 			const testConfig = {
-				jira: { baseUrl: "https://test.com", projectKey: "TEST", issueType: "Task", jqlFilter: "" },
+				jira: {
+					baseUrl: "https://test.com",
+					projectKey: "TEST",
+					issueType: "Task",
+					jqlFilter: "",
+				},
 				backlog: { statusMapping: {} },
-				sync: { conflictStrategy: "prompt" as const, enableAnnotations: false, watchInterval: 60 },
+				sync: {
+					conflictStrategy: "prompt" as const,
+					enableAnnotations: false,
+					watchInterval: 60,
+				},
 				mcp: {
 					dnsServers: ["1.1.1.1"],
 					dnsSearchDomains: ["config.com"],
@@ -257,7 +273,8 @@ describe("MCP Command Unit Tests", () => {
 
 			// CLI options should override config
 			const finalDnsServers = cliDnsServers || configDnsServers;
-			const finalDnsSearchDomains = cliDnsSearchDomains || configDnsSearchDomains;
+			const finalDnsSearchDomains =
+				cliDnsSearchDomains || configDnsSearchDomains;
 
 			expect(finalDnsServers).toEqual(["8.8.8.8", "8.8.4.4"]);
 			expect(finalDnsSearchDomains).toEqual(["cli.com", "test.local"]);
@@ -272,7 +289,8 @@ describe("MCP Command Unit Tests", () => {
 			const cliDnsSearchDomains: string[] | undefined = undefined;
 
 			const finalDnsServers = cliDnsServers || configDnsServers;
-			const finalDnsSearchDomains = cliDnsSearchDomains || configDnsSearchDomains;
+			const finalDnsSearchDomains =
+				cliDnsSearchDomains || configDnsSearchDomains;
 
 			expect(finalDnsServers).toEqual(["1.1.1.1"]);
 			expect(finalDnsSearchDomains).toEqual(["config.com"]);
@@ -320,7 +338,7 @@ describe("MCP Command Unit Tests", () => {
 				options: {
 					stdio: ["pipe", "pipe", "pipe"],
 					env: envVars,
-				}
+				},
 			};
 
 			expect(expectedSpawnArgs.command).toBe("custom-mcp-server");

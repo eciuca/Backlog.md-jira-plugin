@@ -1,7 +1,22 @@
-import { describe, expect, it, mock, beforeEach, afterEach } from "bun:test";
-import { createIssue } from "./create-issue.ts";
+import {
+	afterAll,
+	afterEach,
+	beforeAll,
+	beforeEach,
+	describe,
+	expect,
+	it,
+	mock,
+} from "bun:test";
+import { join } from "node:path";
+import { cleanupDir, uniqueTestDir, writeJson } from "../../test/helpers/fs.ts";
 import type { BacklogTask } from "../integrations/backlog.ts";
 import type { JiraIssue } from "../integrations/jira.ts";
+import { createIssue } from "./create-issue.ts";
+
+let testDir: string;
+let configDir: string;
+let dbPath: string;
 
 // Mock the dependencies
 const mockBacklogClient = {
@@ -48,31 +63,13 @@ const mockJiraClient = {
 	close: mock(async () => {}),
 };
 
-const mockStore = {
-	getMapping: mock((taskId: string) => {
-		if (taskId === "task-mapped") {
-			return { taskId, jiraKey: "TEST-100" };
-		}
-		return null;
-	}),
-	addMapping: mock(() => {}),
-	setSnapshot: mock(() => {}),
-	updateSyncState: mock(() => {}),
-	logOperation: mock(() => {}),
-	close: mock(() => {}),
-};
-
-// Mock the modules
+// Mock the modules at file scope
 mock.module("../integrations/backlog.ts", () => ({
 	BacklogClient: mock(() => mockBacklogClient),
 }));
 
 mock.module("../integrations/jira.ts", () => ({
 	JiraClient: mock(() => mockJiraClient),
-}));
-
-mock.module("../state/store.ts", () => ({
-	SyncStore: mock(() => mockStore),
 }));
 
 mock.module("../utils/jira-config.ts", () => ({
@@ -84,35 +81,46 @@ mock.module("../utils/frontmatter.ts", () => ({
 	updateJiraMetadata: mock(() => {}),
 }));
 
-// Mock fs module
-mock.module("node:fs", () => ({
-	readFileSync: mock(() =>
-		JSON.stringify({
+describe("createIssue", () => {
+	beforeEach(() => {
+		// Create unique test directory and config
+		testDir = uniqueTestDir("create-issue-test");
+		configDir = join(testDir, ".backlog-jira");
+		dbPath = join(configDir, "jira-sync.db");
+
+		// Create real config file
+		const configPath = join(configDir, "config.json");
+		writeJson(configPath, {
 			jira: {
 				projectKey: "TEST",
 				issueType: "Task",
 			},
-		}),
-	),
-}));
+		});
 
-describe("createIssue", () => {
-	beforeEach(() => {
+		// Create a real database in the isolated test directory
+		const { SyncStore } = require("../state/store.ts");
+		const store = new SyncStore(dbPath);
+
+		// Add the "task-mapped" mapping for tests
+		store.addMapping("task-mapped", "TEST-100");
+		store.close();
+
 		// Reset all mocks before each test
 		mockBacklogClient.getTask.mockClear();
 		mockJiraClient.createIssue.mockClear();
 		mockJiraClient.close.mockClear();
-		mockStore.getMapping.mockClear();
-		mockStore.addMapping.mockClear();
-		mockStore.setSnapshot.mockClear();
-		mockStore.updateSyncState.mockClear();
-		mockStore.logOperation.mockClear();
-		mockStore.close.mockClear();
+	});
+
+	afterEach(() => {
+		// Cleanup test directory
+		cleanupDir(testDir);
 	});
 
 	it("should create a Jira issue for an unmapped task", async () => {
 		const result = await createIssue({
 			taskId: "task-123",
+			configDir,
+			dbPath,
 		});
 
 		expect(result.success).toBe(true);
@@ -129,26 +137,25 @@ describe("createIssue", () => {
 		expect(createCall[1]).toBe("Task"); // issueType
 		expect(createCall[2]).toBe("Test Task"); // summary
 
-		// Verify store operations
-		expect(mockStore.addMapping).toHaveBeenCalledWith("task-123", "TEST-123");
-		expect(mockStore.setSnapshot).toHaveBeenCalled();
-		expect(mockStore.updateSyncState).toHaveBeenCalled();
-		expect(mockStore.logOperation).toHaveBeenCalledWith(
-			"create-issue",
-			"task-123",
-			"TEST-123",
-			"success",
-			expect.any(String),
-		);
+		// Verify database operations by checking the actual database
+		const { SyncStore } = require("../state/store.ts");
+		const store = new SyncStore(dbPath);
+
+		const mapping = store.getMapping("task-123");
+		expect(mapping).not.toBeNull();
+		expect(mapping?.jiraKey).toBe("TEST-123");
+
+		store.close();
 
 		// Verify cleanup
-		expect(mockStore.close).toHaveBeenCalled();
 		expect(mockJiraClient.close).toHaveBeenCalled();
 	});
 
 	it("should return error if task does not exist", async () => {
 		const result = await createIssue({
 			taskId: "task-999",
+			configDir,
+			dbPath,
 		});
 
 		expect(result.success).toBe(false);
@@ -162,6 +169,8 @@ describe("createIssue", () => {
 	it("should return error if task is already mapped", async () => {
 		const result = await createIssue({
 			taskId: "task-mapped",
+			configDir,
+			dbPath,
 		});
 
 		expect(result.success).toBe(false);
@@ -176,6 +185,8 @@ describe("createIssue", () => {
 		const result = await createIssue({
 			taskId: "task-123",
 			dryRun: true,
+			configDir,
+			dbPath,
 		});
 
 		expect(result.success).toBe(true);
@@ -184,14 +195,22 @@ describe("createIssue", () => {
 		// Should not create Jira issue in dry-run
 		expect(mockJiraClient.createIssue).not.toHaveBeenCalled();
 
-		// Should not store mapping in dry-run
-		expect(mockStore.addMapping).not.toHaveBeenCalled();
+		// Verify no mapping was created in dry-run
+		const { SyncStore } = require("../state/store.ts");
+		const store = new SyncStore(dbPath);
+
+		const mapping = store.getMapping("task-123");
+		expect(mapping).toBeNull();
+
+		store.close();
 	});
 
 	it("should support custom issue type", async () => {
 		const result = await createIssue({
 			taskId: "task-123",
 			issueType: "Bug",
+			configDir,
+			dbPath,
 		});
 
 		expect(result.success).toBe(true);
@@ -204,6 +223,8 @@ describe("createIssue", () => {
 	it("should merge description with acceptance criteria", async () => {
 		await createIssue({
 			taskId: "task-123",
+			configDir,
+			dbPath,
 		});
 
 		// Verify description includes AC
@@ -218,6 +239,8 @@ describe("createIssue", () => {
 	it("should map priority correctly", async () => {
 		await createIssue({
 			taskId: "task-123",
+			configDir,
+			dbPath,
 		});
 
 		// Verify priority was mapped
@@ -229,6 +252,8 @@ describe("createIssue", () => {
 	it("should handle assignee correctly", async () => {
 		await createIssue({
 			taskId: "task-123",
+			configDir,
+			dbPath,
 		});
 
 		// Verify assignee was extracted (@ prefix removed)
@@ -240,6 +265,8 @@ describe("createIssue", () => {
 	it("should pass labels to Jira", async () => {
 		await createIssue({
 			taskId: "task-123",
+			configDir,
+			dbPath,
 		});
 
 		// Verify labels were passed

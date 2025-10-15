@@ -27,31 +27,25 @@ import {
 	mock,
 	spyOn,
 } from "bun:test";
-import { existsSync, mkdirSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { cleanupDir, uniqueTestDir } from "../../test/helpers/fs.ts";
 import { initCommand } from "./init.ts";
 
-// Test directory setup
-const TEST_DIR = join(import.meta.dir, "../../test-temp");
-const TEST_CONFIG_DIR = join(TEST_DIR, ".backlog-jira");
+// Test directory will be created per-test
+let TEST_DIR: string;
+let TEST_CONFIG_DIR: string;
 
 describe("init command", () => {
 	beforeEach(() => {
-		// Create clean test directory
-		if (existsSync(TEST_DIR)) {
-			rmSync(TEST_DIR, { recursive: true, force: true });
-		}
-		mkdirSync(TEST_DIR, { recursive: true });
-
-		// Change to test directory
-		process.chdir(TEST_DIR);
+		// Create unique test directory for this test
+		TEST_DIR = uniqueTestDir("init-test");
+		TEST_CONFIG_DIR = join(TEST_DIR, ".backlog-jira");
 	});
 
 	afterEach(() => {
 		// Cleanup
-		if (existsSync(TEST_DIR)) {
-			rmSync(TEST_DIR, { recursive: true, force: true });
-		}
+		cleanupDir(TEST_DIR);
 	});
 
 	describe("directory structure", () => {
@@ -60,7 +54,7 @@ describe("init command", () => {
 			const promptsMock = await import("prompts");
 			spyOn(promptsMock, "default").mockResolvedValue({ shouldSetup: false });
 
-			await initCommand();
+			await initCommand({ baseDir: TEST_DIR });
 
 			expect(existsSync(TEST_CONFIG_DIR)).toBe(true);
 		});
@@ -70,7 +64,7 @@ describe("init command", () => {
 			const promptsMock = await import("prompts");
 			spyOn(promptsMock, "default").mockResolvedValue({ shouldSetup: false });
 
-			await initCommand();
+			await initCommand({ baseDir: TEST_DIR });
 
 			const logsDir = join(TEST_CONFIG_DIR, "logs");
 			expect(existsSync(logsDir)).toBe(true);
@@ -81,11 +75,11 @@ describe("init command", () => {
 			const promptsMock = await import("prompts");
 			spyOn(promptsMock, "default").mockResolvedValue({ shouldSetup: false });
 
-			await initCommand();
+			await initCommand({ baseDir: TEST_DIR });
 			const firstInitTime = existsSync(TEST_CONFIG_DIR);
 
 			// Try to initialize again
-			await initCommand();
+			await initCommand({ baseDir: TEST_DIR });
 
 			expect(firstInitTime).toBe(true);
 			// Should still exist but not throw error
@@ -99,7 +93,7 @@ describe("init command", () => {
 			const promptsMock = await import("prompts");
 			spyOn(promptsMock, "default").mockResolvedValue({ shouldSetup: false });
 
-			await initCommand();
+			await initCommand({ baseDir: TEST_DIR });
 
 			const configPath = join(TEST_CONFIG_DIR, "config.json");
 			expect(existsSync(configPath)).toBe(true);
@@ -117,7 +111,7 @@ describe("init command", () => {
 			const promptsMock = await import("prompts");
 			spyOn(promptsMock, "default").mockResolvedValue({ shouldSetup: false });
 
-			await initCommand();
+			await initCommand({ baseDir: TEST_DIR });
 
 			const configPath = join(TEST_CONFIG_DIR, "config.json");
 			const config = JSON.parse(readFileSync(configPath, "utf-8"));
@@ -135,7 +129,7 @@ describe("init command", () => {
 			const promptsMock = await import("prompts");
 			spyOn(promptsMock, "default").mockResolvedValue({ shouldSetup: false });
 
-			await initCommand();
+			await initCommand({ baseDir: TEST_DIR });
 
 			const configPath = join(TEST_CONFIG_DIR, "config.json");
 			const config = JSON.parse(readFileSync(configPath, "utf-8"));
@@ -152,7 +146,7 @@ describe("init command", () => {
 			const promptsMock = await import("prompts");
 			spyOn(promptsMock, "default").mockResolvedValue({ shouldSetup: false });
 
-			await initCommand();
+			await initCommand({ baseDir: TEST_DIR });
 
 			const configPath = join(TEST_CONFIG_DIR, "config.json");
 			const config = JSON.parse(readFileSync(configPath, "utf-8"));
@@ -171,7 +165,7 @@ describe("init command", () => {
 			const promptsMock = await import("prompts");
 			spyOn(promptsMock, "default").mockResolvedValue({ shouldSetup: false });
 
-			await initCommand();
+			await initCommand({ baseDir: TEST_DIR });
 
 			const dbPath = join(TEST_CONFIG_DIR, "jira-sync.db");
 			expect(existsSync(dbPath)).toBe(true);
@@ -182,11 +176,12 @@ describe("init command", () => {
 			const promptsMock = await import("prompts");
 			spyOn(promptsMock, "default").mockResolvedValue({ shouldSetup: false });
 
-			await initCommand();
+			await initCommand({ baseDir: TEST_DIR });
 
 			// Open database and verify tables exist
 			const { SyncStore } = await import("../state/store.ts");
-			const store = new SyncStore();
+			const dbPath = join(TEST_CONFIG_DIR, "jira-sync.db");
+			const store = new SyncStore(dbPath);
 
 			// Try to perform a basic operation to verify schema
 			try {
@@ -205,7 +200,7 @@ describe("init command", () => {
 			const promptsMock = await import("prompts");
 			spyOn(promptsMock, "default").mockResolvedValue({ shouldSetup: false });
 
-			await initCommand();
+			await initCommand({ baseDir: TEST_DIR });
 
 			const gitignorePath = join(TEST_CONFIG_DIR, ".gitignore");
 			expect(existsSync(gitignorePath)).toBe(true);
@@ -216,7 +211,7 @@ describe("init command", () => {
 			const promptsMock = await import("prompts");
 			spyOn(promptsMock, "default").mockResolvedValue({ shouldSetup: false });
 
-			await initCommand();
+			await initCommand({ baseDir: TEST_DIR });
 
 			const gitignorePath = join(TEST_CONFIG_DIR, ".gitignore");
 			const content = readFileSync(gitignorePath, "utf-8");
@@ -232,7 +227,7 @@ describe("init command", () => {
 			const promptsMock = await import("prompts");
 			spyOn(promptsMock, "default").mockResolvedValue({ shouldSetup: false });
 
-			await initCommand();
+			await initCommand({ baseDir: TEST_DIR });
 
 			// Should complete without errors
 			expect(existsSync(TEST_CONFIG_DIR)).toBe(true);
@@ -241,9 +236,11 @@ describe("init command", () => {
 		it("should handle user cancellation gracefully", async () => {
 			// Mock prompts to simulate Ctrl+C (undefined response)
 			const promptsMock = await import("prompts");
-			spyOn(promptsMock, "default").mockResolvedValue({ shouldSetup: undefined });
+			spyOn(promptsMock, "default").mockResolvedValue({
+				shouldSetup: undefined,
+			});
 
-			await initCommand();
+			await initCommand({ baseDir: TEST_DIR });
 
 			// Should still create the config directory
 			expect(existsSync(TEST_CONFIG_DIR)).toBe(true);
@@ -252,7 +249,6 @@ describe("init command", () => {
 		it("should detect existing agent instruction files", async () => {
 			// Create a sample AGENTS.md file
 			const agentsFile = join(TEST_DIR, "AGENTS.md");
-			mkdirSync(TEST_DIR, { recursive: true });
 			Bun.write(agentsFile, "# Agent Instructions\n");
 
 			// Mock prompts sequence
@@ -265,7 +261,7 @@ describe("init command", () => {
 				.mockResolvedValueOnce({ shouldSetup: true })
 				.mockResolvedValueOnce({ selectedFiles: undefined });
 
-			await initCommand();
+			await initCommand({ baseDir: TEST_DIR });
 
 			// Should have been asked about setup
 			expect(mockFn).toHaveBeenCalled();
@@ -280,7 +276,7 @@ describe("init command", () => {
 			spyOn(promptsMock, "default").mockResolvedValue({ shouldSetup: false });
 
 			try {
-				await initCommand();
+				await initCommand({ baseDir: TEST_DIR });
 				expect(true).toBe(true);
 			} catch (error) {
 				// Should not throw during normal operation
@@ -312,7 +308,7 @@ describe("init command", () => {
 			spyOn(promptsMock, "default").mockResolvedValue({ shouldSetup: false });
 
 			const startTime = Date.now();
-			await initCommand();
+			await initCommand({ baseDir: TEST_DIR });
 			const duration = Date.now() - startTime;
 
 			// Should complete in less than 2 seconds
@@ -326,7 +322,7 @@ describe("init command", () => {
 			const promptsMock = await import("prompts");
 			spyOn(promptsMock, "default").mockResolvedValue({ shouldSetup: false });
 
-			await initCommand();
+			await initCommand({ baseDir: TEST_DIR });
 
 			// Verify all expected files exist
 			const expectedFiles = [
@@ -345,7 +341,7 @@ describe("init command", () => {
 			const promptsMock = await import("prompts");
 			spyOn(promptsMock, "default").mockResolvedValue({ shouldSetup: false });
 
-			await initCommand();
+			await initCommand({ baseDir: TEST_DIR });
 
 			const logsDir = join(TEST_CONFIG_DIR, "logs");
 			expect(existsSync(logsDir)).toBe(true);

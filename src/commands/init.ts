@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import prompts from "prompts";
 import chalk from "chalk";
+import prompts from "prompts";
 import { SyncStore } from "../state/store.ts";
 import {
 	type InstructionMode,
@@ -30,8 +30,15 @@ export interface JiraConfig {
 	};
 }
 
-export async function initCommand(): Promise<void> {
-	const configDir = join(process.cwd(), ".backlog-jira");
+export interface InitCommandOptions {
+	baseDir?: string;
+}
+
+export async function initCommand(
+	options: InitCommandOptions = {},
+): Promise<void> {
+	const baseDir = options.baseDir || process.cwd();
+	const configDir = join(baseDir, ".backlog-jira");
 
 	// Check if already initialized
 	if (existsSync(configDir)) {
@@ -70,7 +77,8 @@ export async function initCommand(): Promise<void> {
 	writeFileSync(configPath, JSON.stringify(config, null, 2));
 
 	// Initialize SQLite database
-	const store = new SyncStore();
+	const dbPath = join(configDir, "jira-sync.db");
+	const store = new SyncStore(dbPath);
 	store.close();
 
 	// Create .gitignore
@@ -84,7 +92,7 @@ export async function initCommand(): Promise<void> {
 	);
 
 	// Agent instructions setup
-	await setupAgentInstructions();
+	await setupAgentInstructions(baseDir);
 
 	logger.info("");
 	logger.info("✓ Initialized .backlog-jira/ configuration");
@@ -103,7 +111,7 @@ export async function initCommand(): Promise<void> {
 /**
  * Setup agent instructions for agent instruction files (AGENTS.md, CLAUDE.md, etc.)
  */
-async function setupAgentInstructions(): Promise<void> {
+async function setupAgentInstructions(projectRoot: string): Promise<void> {
 	console.log(chalk.bold.cyan("\n🤖 Agent Instructions Setup\n"));
 	console.log(
 		chalk.gray(
@@ -134,7 +142,6 @@ async function setupAgentInstructions(): Promise<void> {
 	}
 
 	// Find agent instruction files in the project root
-	const projectRoot = process.cwd();
 	const commonAgentFiles = [
 		"AGENTS.md",
 		"CLAUDE.md",
@@ -208,12 +215,14 @@ async function setupAgentInstructions(): Promise<void> {
 		message: "Select instruction mode:",
 		choices: [
 			{
-				title: "CLI Mode - Embedded guidelines (recommended for CLI-only usage)",
+				title:
+					"CLI Mode - Embedded guidelines (recommended for CLI-only usage)",
 				value: "cli",
 				description: "Add comprehensive documentation directly to the file",
 			},
 			{
-				title: "MCP Mode - Reference to MCP resources (recommended if using MCP server)",
+				title:
+					"MCP Mode - Reference to MCP resources (recommended if using MCP server)",
 				value: "mcp",
 				description: "Add a short reference to read MCP resources for details",
 			},
@@ -278,17 +287,17 @@ async function offerGitCommit(
 	const { exec } = await import("node:child_process");
 	const { promisify } = await import("node:util");
 	const execAsync = promisify(exec);
+	const projectRoot = files[0] ? join(files[0], "..") : process.cwd();
 
 	try {
 		// Check if git is available and we're in a git repo
-		await execAsync("git rev-parse --git-dir", { cwd: process.cwd() });
+		await execAsync("git rev-parse --git-dir", { cwd: projectRoot });
 	} catch {
 		// Not a git repository or git not available
 		return;
 	}
 
 	// Check if there are unstaged changes in the modified files
-	const projectRoot = process.cwd();
 	const relativeFiles = files.map((f) => f.replace(`${projectRoot}/`, ""));
 
 	try {

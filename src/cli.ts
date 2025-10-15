@@ -97,7 +97,10 @@ registerViewCommand(program);
 program
 	.command("create-issue <taskId>")
 	.description("Create a Jira issue from an unmapped Backlog task")
-	.option("--issue-type <type>", "Override default issue type (e.g., Task, Bug, Story)")
+	.option(
+		"--issue-type <type>",
+		"Override default issue type (e.g., Task, Bug, Story)",
+	)
 	.option("--dry-run", "Show what would be created without creating the issue")
 	.action(async (taskId, options) => {
 		try {
@@ -109,7 +112,9 @@ program
 
 			if (result.success) {
 				if (result.jiraKey) {
-					console.log(`\n✅ Successfully created Jira issue ${result.jiraKey} for task ${result.taskId}`);
+					console.log(
+						`\n✅ Successfully created Jira issue ${result.jiraKey} for task ${result.taskId}`,
+					);
 				}
 			} else {
 				console.error(`\n❌ Failed to create Jira issue: ${result.error}`);

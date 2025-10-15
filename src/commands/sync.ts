@@ -2,10 +2,10 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { BacklogClient, type BacklogTask } from "../integrations/backlog.ts";
 import { JiraClient, type JiraIssue } from "../integrations/jira.ts";
-import { getJiraClientOptions } from "../utils/jira-config.ts";
 import { SyncStore } from "../state/store.ts";
 import { promptForConflictResolution } from "../ui/conflict-resolver.ts";
 import { getTaskFilePath, updateJiraMetadata } from "../utils/frontmatter.ts";
+import { getJiraClientOptions } from "../utils/jira-config.ts";
 import { logger } from "../utils/logger.ts";
 import {
 	computeHash,

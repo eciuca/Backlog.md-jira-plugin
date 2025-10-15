@@ -55,12 +55,24 @@ export class SyncStore {
 	private db: DatabaseInstance; // Database instance (bun:sqlite or better-sqlite3)
 
 	constructor(dbPath?: string) {
-		const configDir = join(process.cwd(), ".backlog-jira");
-		if (!existsSync(configDir)) {
-			mkdirSync(configDir, { recursive: true });
+		let finalPath: string;
+
+		if (dbPath) {
+			// If explicit path provided, use it directly and ensure parent dir exists
+			finalPath = dbPath;
+			const dbDir = join(finalPath, "..");
+			if (!existsSync(dbDir)) {
+				mkdirSync(dbDir, { recursive: true });
+			}
+		} else {
+			// Default: use .backlog-jira in current directory
+			const configDir = join(process.cwd(), ".backlog-jira");
+			if (!existsSync(configDir)) {
+				mkdirSync(configDir, { recursive: true });
+			}
+			finalPath = join(configDir, "jira-sync.db");
 		}
 
-		const finalPath = dbPath || join(configDir, "jira-sync.db");
 		this.db = new Database(finalPath);
 		this.init();
 		logger.debug({ dbPath: finalPath }, "SyncStore initialized");

@@ -58,7 +58,8 @@ export class JiraClient {
 	private silentMode: boolean;
 
 	constructor(options: JiraClientOptions = {}) {
-		this.dockerImage = options.dockerImage || "ghcr.io/sooperset/mcp-atlassian:latest";
+		this.dockerImage =
+			options.dockerImage || "ghcr.io/sooperset/mcp-atlassian:latest";
 		this.useExternalServer = options.useExternalServer || false;
 		this.serverCommand = options.serverCommand || "mcp-atlassian";
 		this.serverArgs = options.serverArgs || [];
@@ -96,7 +97,10 @@ export class JiraClient {
 			} catch (error) {
 				// In silent mode, only log at debug level during fallback
 				if (this.silentMode) {
-					logger.debug({ error }, "Failed to connect to external MCP server, will try Docker");
+					logger.debug(
+						{ error },
+						"Failed to connect to external MCP server, will try Docker",
+					);
 				} else {
 					logger.warn({ error }, "Failed to connect to external MCP server");
 				}
@@ -114,7 +118,9 @@ export class JiraClient {
 		try {
 			const transport = this.createDockerTransport(envVars);
 			await this.client.connect(transport);
-			logger.info("Successfully connected to Docker-based MCP Atlassian server");
+			logger.info(
+				"Successfully connected to Docker-based MCP Atlassian server",
+			);
 			return this.client;
 		} catch (error) {
 			logger.error({ error }, "Failed to connect to MCP Atlassian server");
@@ -168,9 +174,14 @@ export class JiraClient {
 	/**
 	 * Create transport for external MCP server
 	 */
-	private async createExternalServerTransport(envVars: Record<string, string>): Promise<StdioClientTransport> {
-		logger.debug({ command: this.serverCommand, args: this.serverArgs }, "Connecting to external MCP server");
-		
+	private async createExternalServerTransport(
+		envVars: Record<string, string>,
+	): Promise<StdioClientTransport> {
+		logger.debug(
+			{ command: this.serverCommand, args: this.serverArgs },
+			"Connecting to external MCP server",
+		);
+
 		return new StdioClientTransport({
 			command: this.serverCommand,
 			args: this.serverArgs,
@@ -181,7 +192,9 @@ export class JiraClient {
 	/**
 	 * Create transport for Docker-based MCP server
 	 */
-	private createDockerTransport(envVars: Record<string, string>): StdioClientTransport {
+	private createDockerTransport(
+		envVars: Record<string, string>,
+	): StdioClientTransport {
 		const dockerArgs = ["run", "-i", "-e", "JIRA_URL"];
 
 		if (envVars.JIRA_PERSONAL_TOKEN) {
@@ -192,9 +205,12 @@ export class JiraClient {
 
 		// Add custom Docker arguments (e.g., --dns, --dns-search) before the image
 		if (this.dockerArgs.length > 0) {
-			logger.debug({ customDockerArgs: this.dockerArgs }, "Adding custom Docker arguments");
+			logger.debug(
+				{ customDockerArgs: this.dockerArgs },
+				"Adding custom Docker arguments",
+			);
 			// Split arguments that contain spaces (e.g., "--dns 8.8.8.8" -> ["--dns", "8.8.8.8"])
-			const splitArgs = this.dockerArgs.flatMap(arg => arg.split(/\s+/));
+			const splitArgs = this.dockerArgs.flatMap((arg) => arg.split(/\s+/));
 			dockerArgs.push(...splitArgs);
 		}
 
@@ -202,7 +218,10 @@ export class JiraClient {
 
 		// Log the complete Docker command for debugging
 		const fullCommand = `docker ${dockerArgs.join(" ")}`;
-		logger.info({ command: fullCommand, dockerArgs }, "Creating Docker-based MCP transport");
+		logger.info(
+			{ command: fullCommand, dockerArgs },
+			"Creating Docker-based MCP transport",
+		);
 		// Only show console output if not in silent mode
 		if (!this.silentMode) {
 			console.log(`\n🐳 Docker command: ${fullCommand}\n`);
@@ -342,77 +361,90 @@ export class JiraClient {
 				input.fields = options.fields;
 			}
 
-		const result = (await this.callMcpTool("jira_search", input)) as {
-			issues: Array<Record<string, unknown>>;
-			total: number;
-			startAt?: number;
-			start_at?: number;
-			maxResults?: number;
-			max_results?: number;
-		};
+			const result = (await this.callMcpTool("jira_search", input)) as {
+				issues: Array<Record<string, unknown>>;
+				total: number;
+				startAt?: number;
+				start_at?: number;
+				maxResults?: number;
+				max_results?: number;
+			};
 
-		// Validate the result has the expected structure
-		if (!result || !Array.isArray(result.issues)) {
-			logger.error({ result }, "Invalid response from jira_search");
-			throw new Error(
-				"Invalid response from Jira API: missing or invalid 'issues' array",
+			// Validate the result has the expected structure
+			if (!result || !Array.isArray(result.issues)) {
+				logger.error({ result }, "Invalid response from jira_search");
+				throw new Error(
+					"Invalid response from Jira API: missing or invalid 'issues' array",
+				);
+			}
+
+			const issues: JiraIssue[] = result.issues.map((issue) => {
+				// MCP Atlassian returns fields at top level, not nested under 'fields'
+				// Handle both formats for compatibility
+				const hasNestedFields =
+					issue.fields && typeof issue.fields === "object";
+				const fields = hasNestedFields
+					? (issue.fields as Record<string, unknown>)
+					: issue;
+
+				// Extract status
+				const status = fields.status as
+					| { name: string }
+					| { id: string; name: string }
+					| undefined;
+				const statusName = status?.name || "Unknown";
+
+				// Extract issue type
+				const issueType = fields.issue_type as { name: string } | undefined;
+				const issueTypeName =
+					issueType?.name ||
+					(fields.issuetype as { name: string } | undefined)?.name ||
+					"Task";
+
+				// Extract assignee
+				const assignee = fields.assignee as
+					| { display_name?: string; displayName?: string }
+					| undefined;
+				const assigneeName = assignee?.display_name || assignee?.displayName;
+
+				// Extract reporter
+				const reporter = fields.reporter as
+					| { display_name?: string; displayName?: string }
+					| undefined;
+				const reporterName = reporter?.display_name || reporter?.displayName;
+
+				// Extract priority
+				const priority = fields.priority as { name: string } | undefined;
+				const priorityName = priority?.name;
+
+				return {
+					key: issue.key as string,
+					id: issue.id as string,
+					summary: fields.summary as string,
+					description: fields.description as string | undefined,
+					status: statusName,
+					issueType: issueTypeName,
+					assignee: assigneeName,
+					reporter: reporterName,
+					priority: priorityName,
+					labels: (fields.labels as string[]) || [],
+					created: fields.created as string,
+					updated: fields.updated as string,
+					fields: fields as Record<string, unknown>,
+				};
+			});
+
+			logger.info(
+				{ jql, count: issues.length, total: result.total },
+				"Searched Jira issues",
 			);
-		}
-
-		const issues: JiraIssue[] = result.issues.map((issue) => {
-			// MCP Atlassian returns fields at top level, not nested under 'fields'
-			// Handle both formats for compatibility
-			const hasNestedFields = issue.fields && typeof issue.fields === "object";
-			const fields = hasNestedFields ? (issue.fields as Record<string, unknown>) : issue;
-			
-			// Extract status
-			const status = fields.status as { name: string } | { id: string; name: string } | undefined;
-			const statusName = status?.name || "Unknown";
-			
-			// Extract issue type
-			const issueType = fields.issue_type as { name: string } | undefined;
-			const issueTypeName = issueType?.name || (fields.issuetype as { name: string } | undefined)?.name || "Task";
-			
-			// Extract assignee
-			const assignee = fields.assignee as { display_name?: string; displayName?: string } | undefined;
-			const assigneeName = assignee?.display_name || assignee?.displayName;
-			
-			// Extract reporter
-			const reporter = fields.reporter as { display_name?: string; displayName?: string } | undefined;
-			const reporterName = reporter?.display_name || reporter?.displayName;
-			
-			// Extract priority
-			const priority = fields.priority as { name: string } | undefined;
-			const priorityName = priority?.name;
 
 			return {
-				key: issue.key as string,
-				id: issue.id as string,
-				summary: fields.summary as string,
-				description: fields.description as string | undefined,
-				status: statusName,
-				issueType: issueTypeName,
-				assignee: assigneeName,
-				reporter: reporterName,
-				priority: priorityName,
-				labels: (fields.labels as string[]) || [],
-				created: fields.created as string,
-				updated: fields.updated as string,
-				fields: fields as Record<string, unknown>,
+				issues,
+				total: result.total,
+				startAt: result.startAt || result.start_at || 0,
+				maxResults: result.maxResults || result.max_results || 50,
 			};
-		});
-
-		logger.info(
-			{ jql, count: issues.length, total: result.total },
-			"Searched Jira issues",
-		);
-
-		return {
-			issues,
-			total: result.total,
-			startAt: result.startAt || result.start_at || 0,
-			maxResults: result.maxResults || result.max_results || 50,
-		};
 		} catch (error) {
 			logger.error({ error, jql }, "Failed to search Jira issues");
 			throw error;

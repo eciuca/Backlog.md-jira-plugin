@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import prompts from "prompts";
 import chalk from "chalk";
+import prompts from "prompts";
 import { JiraClient } from "../integrations/jira.ts";
 import { logger } from "../utils/logger.ts";
 import type { JiraConfig } from "./init.ts";
@@ -210,11 +210,13 @@ export async function configureCommand(
 			process.exit(0);
 		}
 
-	jiraPersonalToken = patResponse.pat;
+		jiraPersonalToken = patResponse.pat;
 	}
 
 	// Step 4: MCP Server Configuration (Optional)
-	console.log(chalk.bold.green("\n\nStep 4: MCP Server Configuration (Optional)"));
+	console.log(
+		chalk.bold.green("\n\nStep 4: MCP Server Configuration (Optional)"),
+	);
 	console.log(
 		chalk.gray(
 			"Configure additional arguments and environment variables for the MCP server.\n",
@@ -228,7 +230,8 @@ export async function configureCommand(
 	const useMcpArgsResponse = await prompts({
 		type: "confirm",
 		name: "useMcpArgs",
-		message: "Do you want to configure MCP server arguments (e.g., Docker options like --dns)?",
+		message:
+			"Do you want to configure MCP server arguments (e.g., Docker options like --dns)?",
 		initial: false,
 	});
 
@@ -239,7 +242,9 @@ export async function configureCommand(
 
 	if (useMcpArgsResponse.useMcpArgs) {
 		console.log(chalk.cyan("\nEnter server arguments one by one."));
-		console.log(chalk.gray("Examples: --dns 8.8.8.8, --dns-search company.com"));
+		console.log(
+			chalk.gray("Examples: --dns 8.8.8.8, --dns-search company.com"),
+		);
 		console.log(chalk.gray("Leave empty to finish.\n"));
 
 		let addingArgs = true;
@@ -280,7 +285,8 @@ export async function configureCommand(
 	const useMcpEnvResponse = await prompts({
 		type: "confirm",
 		name: "useMcpEnv",
-		message: "Do you want to configure additional MCP server environment variables?",
+		message:
+			"Do you want to configure additional MCP server environment variables?",
 		initial: false,
 	});
 
@@ -290,7 +296,9 @@ export async function configureCommand(
 	}
 
 	if (useMcpEnvResponse.useMcpEnv) {
-		console.log(chalk.cyan("\nEnter key-value pairs for environment variables."));
+		console.log(
+			chalk.cyan("\nEnter key-value pairs for environment variables."),
+		);
 		console.log(chalk.gray("Leave the key empty to finish.\n"));
 
 		let addingVars = true;
@@ -353,7 +361,9 @@ export async function configureCommand(
 		if (Object.keys(mcpEnvVars).length > 0) {
 			console.log(chalk.cyan("\nConfigured environment variables:"));
 			for (const [key, value] of Object.entries(mcpEnvVars)) {
-				console.log(chalk.gray(`  ${key}: ${"*".repeat(Math.min(value.length, 20))}`));
+				console.log(
+					chalk.gray(`  ${key}: ${"*".repeat(Math.min(value.length, 20))}`),
+				);
 			}
 			console.log();
 		}
@@ -541,8 +551,8 @@ export async function configureCommand(
 	});
 
 	if (!issueTypeResponse.issueType) {
-		 console.log(chalk.yellow("\n✗ Configuration cancelled.\n"));
-			process.exit(0);
+		console.log(chalk.yellow("\n✗ Configuration cancelled.\n"));
+		process.exit(0);
 	}
 
 	const issueType = issueTypeResponse.issueType;

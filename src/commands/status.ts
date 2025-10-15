@@ -1,8 +1,8 @@
 import type { Command } from "commander";
 import { BacklogClient } from "../integrations/backlog.ts";
 import { JiraClient } from "../integrations/jira.ts";
-import { getJiraClientOptions } from "../utils/jira-config.ts";
 import { SyncStore } from "../state/store.ts";
+import { getJiraClientOptions } from "../utils/jira-config.ts";
 import { logger } from "../utils/logger.ts";
 import {
 	comparePayloads,

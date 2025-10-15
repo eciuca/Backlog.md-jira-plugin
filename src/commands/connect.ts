@@ -51,4 +51,3 @@ export async function connectCommand(): Promise<void> {
 		process.exit(1);
 	}
 }
-

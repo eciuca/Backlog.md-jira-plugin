@@ -1,4 +1,4 @@
-import { describe, expect, it, mock, beforeEach, afterEach } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
 import { JiraClient, type JiraClientOptions } from "./jira.ts";
 
 describe("JiraClient", () => {
@@ -232,21 +232,21 @@ describe("JiraClient", () => {
 	describe("External MCP Server Configuration", () => {
 		let originalEnv: Record<string, string | undefined>;
 
-	beforeEach(() => {
-		// Save original environment
-		originalEnv = {
-			JIRA_URL: process.env.JIRA_URL,
-			JIRA_USERNAME: process.env.JIRA_USERNAME,
-			JIRA_API_TOKEN: process.env.JIRA_API_TOKEN,
-			JIRA_EMAIL: process.env.JIRA_EMAIL,
-			JIRA_PERSONAL_TOKEN: process.env.JIRA_PERSONAL_TOKEN,
-		};
+		beforeEach(() => {
+			// Save original environment
+			originalEnv = {
+				JIRA_URL: process.env.JIRA_URL,
+				JIRA_USERNAME: process.env.JIRA_USERNAME,
+				JIRA_API_TOKEN: process.env.JIRA_API_TOKEN,
+				JIRA_EMAIL: process.env.JIRA_EMAIL,
+				JIRA_PERSONAL_TOKEN: process.env.JIRA_PERSONAL_TOKEN,
+			};
 
-		// Set test environment
-		process.env.JIRA_URL = "https://test.atlassian.net";
-		process.env.JIRA_USERNAME = "test@example.com";
-		process.env.JIRA_API_TOKEN = "test-token";
-	});
+			// Set test environment
+			process.env.JIRA_URL = "https://test.atlassian.net";
+			process.env.JIRA_USERNAME = "test@example.com";
+			process.env.JIRA_API_TOKEN = "test-token";
+		});
 
 		afterEach(() => {
 			// Restore original environment
@@ -269,7 +269,9 @@ describe("JiraClient", () => {
 				fallbackToDocker: boolean;
 			};
 			expect(clientInternal.useExternalServer).toBe(false);
-			expect(clientInternal.dockerImage).toBe("ghcr.io/sooperset/mcp-atlassian:latest");
+			expect(clientInternal.dockerImage).toBe(
+				"ghcr.io/sooperset/mcp-atlassian:latest",
+			);
 			expect(clientInternal.fallbackToDocker).toBe(true);
 		});
 
@@ -298,7 +300,7 @@ describe("JiraClient", () => {
 
 		it("should validate credentials correctly", () => {
 			const client = new JiraClient();
-			
+
 			// Access private method for testing
 			const clientInternal = client as unknown as {
 				validateAndPrepareCredentials(): Record<string, string>;
@@ -311,32 +313,32 @@ describe("JiraClient", () => {
 		});
 
 		it("should throw error for missing JIRA_URL", () => {
-			delete process.env.JIRA_URL;
+			process.env.JIRA_URL = undefined;
 			const client = new JiraClient();
-			
+
 			const clientInternal = client as unknown as {
 				validateAndPrepareCredentials(): Record<string, string>;
 			};
 
 			expect(() => clientInternal.validateAndPrepareCredentials()).toThrow(
-				"Missing JIRA_URL environment variable."
+				"Missing JIRA_URL environment variable.",
 			);
 		});
 
-	it("should throw error for missing authentication credentials", () => {
-		delete process.env.JIRA_USERNAME;
-		delete process.env.JIRA_API_TOKEN;
-		delete process.env.JIRA_EMAIL;
-		delete process.env.JIRA_PERSONAL_TOKEN;
-		const client = new JiraClient();
-		
-		const clientInternal = client as unknown as {
-			validateAndPrepareCredentials(): Record<string, string>;
-		};
+		it("should throw error for missing authentication credentials", () => {
+			process.env.JIRA_USERNAME = undefined;
+			process.env.JIRA_API_TOKEN = undefined;
+			process.env.JIRA_EMAIL = undefined;
+			process.env.JIRA_PERSONAL_TOKEN = undefined;
+			const client = new JiraClient();
 
-		expect(() => clientInternal.validateAndPrepareCredentials()).toThrow(
-			"Missing required Jira credentials"
-		);
-	});
+			const clientInternal = client as unknown as {
+				validateAndPrepareCredentials(): Record<string, string>;
+			};
+
+			expect(() => clientInternal.validateAndPrepareCredentials()).toThrow(
+				"Missing required Jira credentials",
+			);
+		});
 	});
 });
