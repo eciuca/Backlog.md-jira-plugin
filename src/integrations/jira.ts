@@ -44,6 +44,7 @@ export interface JiraClientOptions {
 	serverArgs?: string[];
 	dockerArgs?: string[];
 	fallbackToDocker?: boolean;
+	silentMode?: boolean;
 }
 
 export class JiraClient {
@@ -54,6 +55,7 @@ export class JiraClient {
 	private serverArgs: string[];
 	private dockerArgs: string[];
 	private fallbackToDocker: boolean;
+	private silentMode: boolean;
 
 	constructor(options: JiraClientOptions = {}) {
 		this.dockerImage = options.dockerImage || "ghcr.io/sooperset/mcp-atlassian:latest";
@@ -62,6 +64,7 @@ export class JiraClient {
 		this.serverArgs = options.serverArgs || [];
 		this.dockerArgs = options.dockerArgs || [];
 		this.fallbackToDocker = options.fallbackToDocker !== false; // default true
+		this.silentMode = options.silentMode || false;
 	}
 
 	/**
@@ -91,12 +94,19 @@ export class JiraClient {
 				logger.info("Successfully connected to external MCP Atlassian server");
 				return this.client;
 			} catch (error) {
-				logger.warn({ error }, "Failed to connect to external MCP server");
+				// In silent mode, only log at debug level during fallback
+				if (this.silentMode) {
+					logger.debug({ error }, "Failed to connect to external MCP server, will try Docker");
+				} else {
+					logger.warn({ error }, "Failed to connect to external MCP server");
+				}
 				if (!this.fallbackToDocker) {
 					this.client = null;
 					throw error;
 				}
-				logger.info("Falling back to Docker-based MCP server");
+				if (!this.silentMode) {
+					logger.info("Falling back to Docker-based MCP server");
+				}
 			}
 		}
 
@@ -193,7 +203,10 @@ export class JiraClient {
 		// Log the complete Docker command for debugging
 		const fullCommand = `docker ${dockerArgs.join(" ")}`;
 		logger.info({ command: fullCommand, dockerArgs }, "Creating Docker-based MCP transport");
-		console.log(`\n🐳 Docker command: ${fullCommand}\n`);
+		// Only show console output if not in silent mode
+		if (!this.silentMode) {
+			console.log(`\n🐳 Docker command: ${fullCommand}\n`);
+		}
 
 		return new StdioClientTransport({
 			command: "docker",

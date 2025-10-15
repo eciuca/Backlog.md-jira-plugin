@@ -392,8 +392,10 @@ export async function configureCommand(
 
 	try {
 		// Pass MCP server arguments to JiraClient for testing
+		// Use silent mode to suppress retry errors during connection test
 		const jiraClient = new JiraClient({
 			dockerArgs: mcpServerArgs,
+			silentMode: true,
 		});
 		connectionOk = await jiraClient.test();
 
@@ -403,8 +405,10 @@ export async function configureCommand(
 			// Fetch available projects
 			try {
 				// Create a new client for fetching projects since test() closes the connection
+				// No need for silent mode here as connection is already verified
 				const projectsClient = new JiraClient({
 					dockerArgs: mcpServerArgs,
+					silentMode: true,
 				});
 				const projects = await projectsClient.getAllProjects();
 				availableProjects = projects;
