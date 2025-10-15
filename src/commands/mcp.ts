@@ -21,6 +21,7 @@ export interface ExtendedJiraConfig extends JiraConfig {
 
 export interface McpStartOptions {
 	debug?: boolean;
+	verbose?: boolean;
 	dnsServers?: string[];
 	dnsSearchDomains?: string[];
 }
@@ -37,6 +38,7 @@ export function registerMcpCommand(program: Command): void {
 		.command("start")
 		.description("Start MCP Atlassian server using plugin configuration")
 		.option("--debug", "Print startup info and debug output")
+		.option("-v, --verbose", "Display docker commands being executed")
 		.option(
 			"--dns-servers <servers...>",
 			"DNS server IPs for the MCP server process (e.g., 8.8.8.8 1.1.1.1)",
@@ -109,7 +111,7 @@ export async function mcpStartCommand(options: McpStartOptions = {}): Promise<vo
 	}
 
 	// Use Docker approach (either as primary or fallback)
-	await startDockerServer(config, envVars, dnsServers, dnsSearchDomains, options.debug);
+	await startDockerServer(config, envVars, dnsServers, dnsSearchDomains, options.debug, options.verbose);
 }
 
 /**
@@ -290,6 +292,7 @@ async function startDockerServer(
 	dnsServers: string[],
 	dnsSearchDomains: string[],
 	debug?: boolean,
+	verbose?: boolean,
 ): Promise<void> {
 	const dockerImage = "ghcr.io/sooperset/mcp-atlassian:latest";
 	const dockerArgs = ["run", "--rm", "-i"];
@@ -319,6 +322,11 @@ async function startDockerServer(
 		console.log(chalk.blue("Starting Docker MCP server:"));
 		console.log(chalk.gray(`  Image: ${dockerImage}`));
 		console.log(chalk.gray(`  Args: [${dockerArgs.join(", ")}]`));
+	}
+
+	// Log docker command if verbose mode is enabled
+	if (verbose) {
+		logDockerCommand("docker", dockerArgs);
 	}
 
 	return new Promise((resolve, reject) => {
@@ -414,4 +422,16 @@ function applyDnsConfiguration(
 	}
 
 	return result;
+}
+
+/**
+ * Log docker command to stderr for debugging/transparency
+ * @param command - The docker command (typically "docker")
+ * @param args - Array of command arguments
+ */
+function logDockerCommand(command: string, args: string[]): void {
+	const fullCommand = `${command} ${args.join(" ")}`;
+	console.error(chalk.cyan("[VERBOSE] Docker command:"));
+	console.error(chalk.gray(fullCommand));
+	console.error();
 }
