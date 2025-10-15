@@ -2,9 +2,9 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { BacklogClient, type BacklogTask } from "../integrations/backlog.ts";
 import { JiraClient, type JiraIssue } from "../integrations/jira.ts";
-import { getJiraClientOptions } from "../utils/jira-config.ts";
 import { SyncStore } from "../state/store.ts";
 import { getTaskFilePath, updateJiraMetadata } from "../utils/frontmatter.ts";
+import { getJiraClientOptions } from "../utils/jira-config.ts";
 import { logger } from "../utils/logger.ts";
 import {
 	computeHash,
@@ -13,6 +13,7 @@ import {
 	normalizeJiraIssue,
 	stripAcceptanceCriteriaFromDescription,
 } from "../utils/normalizer.ts";
+import { mapBacklogPriorityToJira } from "../utils/priority-mapping.ts";
 import { findTransitionForStatus } from "../utils/status-mapping.ts";
 import { classifySyncState } from "../utils/sync-state.ts";
 
@@ -292,7 +293,9 @@ async function pushTask(
 			const issue = await jira.createIssue(projectKey, issueType, task.title, {
 				description: descriptionWithAc,
 				assignee: task.assignee,
-				priority: task.priority,
+				priority: task.priority
+					? mapBacklogPriorityToJira(task.priority)
+					: undefined,
 				labels: task.labels,
 			});
 
@@ -399,9 +402,20 @@ async function buildJiraUpdates(
 		fields.assignee = task.assignee;
 	}
 
-	// Priority
-	if (task.priority && task.priority !== currentIssue.priority) {
-		fields.priority = task.priority;
+	// Priority (needs mapping from Backlog priority to Jira priority)
+	if (task.priority) {
+		const mappedPriority = mapBacklogPriorityToJira(task.priority);
+		if (mappedPriority && mappedPriority !== currentIssue.priority) {
+			fields.priority = mappedPriority;
+			logger.debug(
+				{
+					taskId: task.id,
+					backlogPriority: task.priority,
+					jiraPriority: mappedPriority,
+				},
+				"Mapped Backlog priority to Jira priority",
+			);
+		}
 	}
 
 	// Labels
