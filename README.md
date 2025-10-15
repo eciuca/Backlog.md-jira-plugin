@@ -114,6 +114,7 @@ The plugin maintains state in `.backlog-jira/jira-sync.db`:
 - ✅ **Performance Optimization**: Parallel batch processing for large datasets (100 tasks < 30s)
 - ✅ **Rate Limit Handling**: Exponential backoff and graceful error handling
 - ✅ **Cross-Platform Support**: Works on Linux, macOS, and Windows via Bun runtime
+- ✅ **Built-in MCP Server**: `backlog-jira mcp start` command with DNS configuration support
 
 ### 🚧 Future Enhancements
 
@@ -611,6 +612,37 @@ backlog-jira watch task-123 task-124
 ## Troubleshooting
 
 ### Common Issues
+
+#### Issue: Strange characters in interactive prompts (âº, â, â¦)
+
+**Problem:** The terminal is not configured for UTF-8 encoding, causing Unicode characters to display incorrectly.
+
+**Solution:**
+
+1. **Check your terminal encoding**:
+   ```bash
+   locale | grep UTF
+   ```
+
+2. **Set UTF-8 encoding** (add to `~/.bashrc` or `~/.zshrc`):
+   ```bash
+   export LANG=en_US.UTF-8
+   export LC_ALL=en_US.UTF-8
+   ```
+
+3. **For Windows users**:
+   - Use Windows Terminal or WSL2 with UTF-8 support
+   - In CMD/PowerShell, run: `chcp 65001`
+   - Or use Git Bash which supports UTF-8 by default
+
+4. **Alternative - ASCII-only mode** (if UTF-8 is not available):
+   ```bash
+   # Set environment variable to disable Unicode characters
+   export FORCE_ASCII=1
+   backlog-jira configure
+   ```
+
+**Note:** The plugin uses Unicode characters (›, ✔, …) for better user experience in modern terminals. These require UTF-8 support.
 
 #### Issue: "Backlog CLI not found"
 

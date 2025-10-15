@@ -1,4 +1,9 @@
 #!/usr/bin/env bun
+
+// Note: Build target must match shebang (both should be 'bun' or both 'node')
+// Building with --target=node but running with bun causes UTF-8 double-encoding
+// Current: --target=bun with #!/usr/bin/env bun for correct UTF-8 handling
+
 import { Command } from "commander";
 import packageJson from "../package.json";
 import { configureCommand } from "./commands/configure.ts";
@@ -6,6 +11,7 @@ import { connectCommand } from "./commands/connect.ts";
 import { doctorCommand } from "./commands/doctor.ts";
 import { initCommand } from "./commands/init.ts";
 import { registerMapCommand } from "./commands/map.ts";
+import { registerMcpCommand } from "./commands/mcp.ts";
 import { pull } from "./commands/pull.ts";
 import { push } from "./commands/push.ts";
 import { registerStatusCommand } from "./commands/status.ts";
@@ -81,8 +87,9 @@ program
 		}
 	});
 
-// Phase 3: Mapping and Status Commands
+// Phase 3: Mapping, Status, and MCP Commands
 registerMapCommand(program);
+registerMcpCommand(program);
 registerStatusCommand(program);
 registerViewCommand(program);
 

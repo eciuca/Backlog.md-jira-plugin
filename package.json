@@ -30,7 +30,7 @@
 	},
 	"files": ["dist", "README.md", "LICENSE"],
 	"scripts": {
-		"build": "bun build --target=node --external better-sqlite3 --external pino --external pino-pretty src/cli.ts --outdir=dist",
+		"build": "bun build --target=bun --external better-sqlite3 --external pino --external pino-pretty src/cli.ts --outdir=dist",
 		"dev": "bun run src/cli.ts",
 		"test": "bun test",
 		"test:integration": "./tests/integration/test-clean-install.sh",
