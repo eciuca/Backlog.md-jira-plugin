@@ -8,6 +8,7 @@ import {
 } from "../integrations/jira.ts";
 import { SyncStore } from "../state/store.ts";
 import { getTaskFilePath, updateJiraMetadata } from "../utils/frontmatter.ts";
+import { getJiraClientOptions } from "../utils/jira-config.ts";
 import { logger } from "../utils/logger.ts";
 import {
 	computeHash,
@@ -15,9 +16,9 @@ import {
 	normalizeJiraIssue,
 	stripAcceptanceCriteriaFromDescription,
 } from "../utils/normalizer.ts";
+import { mapJiraPriorityToBacklog } from "../utils/priority-mapping.ts";
 import { mapJiraStatusToBacklog } from "../utils/status-mapping.ts";
 import { classifySyncState } from "../utils/sync-state.ts";
-import { getJiraClientOptions } from "../utils/jira-config.ts";
 
 export interface PullOptions {
 	taskIds?: string[];
@@ -455,9 +456,21 @@ function buildBacklogUpdates(
 		updates.labels = issue.labels;
 	}
 
-	// Priority
-	if (issue.priority && issue.priority !== currentTask.priority) {
-		updates.priority = issue.priority;
+	// Priority (needs mapping from Jira priority to Backlog priority)
+	if (issue.priority) {
+		const mappedPriority = mapJiraPriorityToBacklog(issue.priority);
+		if (mappedPriority && mappedPriority !== currentTask.priority) {
+			updates.priority = mappedPriority;
+			logger.debug(
+				{
+					taskId: currentTask.id,
+					from: currentTask.priority,
+					to: mappedPriority,
+					jiraPriority: issue.priority,
+				},
+				"Mapped Jira priority to Backlog priority",
+			);
+		}
 	}
 
 	// Acceptance Criteria synchronization
