@@ -76,7 +76,9 @@ export class JiraClient {
 			return this.client;
 		}
 
-		logger.debug("Initializing MCP client connection to Atlassian server");
+		if (!this.silentMode) {
+			logger.debug("Initializing MCP client connection to Atlassian server");
+		}
 
 		// Create MCP client
 		this.client = new Client({
@@ -92,7 +94,11 @@ export class JiraClient {
 			try {
 				const transport = await this.createExternalServerTransport(envVars);
 				await this.client.connect(transport);
-				logger.info("Successfully connected to external MCP Atlassian server");
+				if (!this.silentMode) {
+					logger.info(
+						"Successfully connected to external MCP Atlassian server",
+					);
+				}
 				return this.client;
 			} catch (error) {
 				// In silent mode, only log at debug level during fallback
@@ -118,9 +124,11 @@ export class JiraClient {
 		try {
 			const transport = this.createDockerTransport(envVars);
 			await this.client.connect(transport);
-			logger.info(
-				"Successfully connected to Docker-based MCP Atlassian server",
-			);
+			if (!this.silentMode) {
+				logger.info(
+					"Successfully connected to Docker-based MCP Atlassian server",
+				);
+			}
 			return this.client;
 		} catch (error) {
 			logger.error({ error }, "Failed to connect to MCP Atlassian server");
@@ -217,14 +225,12 @@ export class JiraClient {
 		dockerArgs.push(this.dockerImage);
 
 		// Log the complete Docker command for debugging
-		const fullCommand = `docker ${dockerArgs.join(" ")}`;
-		logger.info(
-			{ command: fullCommand, dockerArgs },
-			"Creating Docker-based MCP transport",
-		);
-		// Only show console output if not in silent mode
 		if (!this.silentMode) {
-			console.log(`\n🐳 Docker command: ${fullCommand}\n`);
+			const fullCommand = `docker ${dockerArgs.join(" ")}`;
+			logger.info(
+				{ command: fullCommand, dockerArgs },
+				"Creating Docker-based MCP transport",
+			);
 		}
 
 		return new StdioClientTransport({
@@ -254,16 +260,20 @@ export class JiraClient {
 	): Promise<unknown> {
 		try {
 			const client = await this.ensureConnected();
-			logger.info({ toolName, input }, "About to call MCP tool");
+			if (!this.silentMode) {
+				logger.info({ toolName, input }, "About to call MCP tool");
+			}
 
 			const result = await client.callTool({
 				name: toolName,
 				arguments: input,
 			});
-			logger.info(
-				{ toolName, hasContent: !!result.content },
-				"MCP tool returned",
-			);
+			if (!this.silentMode) {
+				logger.info(
+					{ toolName, hasContent: !!result.content },
+					"MCP tool returned",
+				);
+			}
 
 			// Extract the actual content from the MCP response
 			const resultContent = result.content as

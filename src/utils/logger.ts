@@ -20,3 +20,20 @@ export const logger = isDevelopment
 	: pino({
 			level: process.env.LOG_LEVEL || "info",
 		});
+
+/**
+ * Set the logger level dynamically
+ * Useful for temporarily suppressing logs in commands
+ */
+export function setLogLevel(
+	level: "trace" | "debug" | "info" | "warn" | "error" | "fatal",
+) {
+	logger.level = level;
+}
+
+/**
+ * Get the current logger level
+ */
+export function getLogLevel(): string {
+	return logger.level;
+}
