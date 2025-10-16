@@ -46,6 +46,7 @@ program
 	.command("configure")
 	.description("Interactive wizard to configure Jira connection settings")
 	.option("--non-interactive", "Non-interactive mode for CI/CD environments")
+	.option("-v, --verbose", "Show detailed logging output")
 	.action(async (options) => {
 		try {
 			await configureCommand(options);
