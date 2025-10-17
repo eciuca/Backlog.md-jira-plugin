@@ -3,7 +3,7 @@ import * as readline from "node:readline/promises";
 import type { Command } from "commander";
 import { BacklogClient } from "../integrations/backlog.ts";
 import { JiraClient } from "../integrations/jira.ts";
-import { SyncStore } from "../state/store.ts";
+import { FrontmatterStore } from "../state/store.ts";
 import { getTaskFilePath, updateJiraMetadata } from "../utils/frontmatter.ts";
 import { getJiraClientOptions } from "../utils/jira-config.ts";
 import { logger } from "../utils/logger.ts";
@@ -44,7 +44,7 @@ async function autoMap(options: {
 	dryRun?: boolean;
 	minScore?: number;
 }): Promise<void> {
-	const store = new SyncStore();
+	const store = new FrontmatterStore();
 	const backlog = new BacklogClient();
 	const jira = new JiraClient(getJiraClientOptions());
 
@@ -160,7 +160,7 @@ async function autoMap(options: {
  * Interactive map command: manually select Jira issues for tasks
  */
 async function interactiveMap(): Promise<void> {
-	const store = new SyncStore();
+	const store = new FrontmatterStore();
 	const backlog = new BacklogClient();
 	const jira = new JiraClient(getJiraClientOptions());
 	const rl = readline.createInterface({ input, output });
@@ -306,7 +306,7 @@ async function linkTask(
 	jiraKey: string,
 	options: { force?: boolean } = {},
 ): Promise<void> {
-	const store = new SyncStore();
+	const store = new FrontmatterStore();
 	const backlog = new BacklogClient();
 	const jira = new JiraClient(getJiraClientOptions());
 

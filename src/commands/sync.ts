@@ -2,7 +2,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { BacklogClient, type BacklogTask } from "../integrations/backlog.ts";
 import { JiraClient, type JiraIssue } from "../integrations/jira.ts";
-import { SyncStore } from "../state/store.ts";
+import { FrontmatterStore } from "../state/store.ts";
 import { promptForConflictResolution } from "../ui/conflict-resolver.ts";
 import { getTaskFilePath, updateJiraMetadata } from "../utils/frontmatter.ts";
 import { getJiraClientOptions } from "../utils/jira-config.ts";
@@ -70,7 +70,7 @@ export async function sync(options: SyncOptions = {}): Promise<SyncResult> {
 
 	logger.info({ options }, "Starting sync operation");
 
-	const store = new SyncStore();
+	const store = new FrontmatterStore();
 	const backlog = new BacklogClient();
 	const jira = new JiraClient(getJiraClientOptions());
 

@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import chalk from "chalk";
 import prompts from "prompts";
-import { SyncStore } from "../state/store.ts";
+import { FrontmatterStore } from "../state/store.ts";
 import {
 	type InstructionMode,
 	addAgentInstructions,
@@ -76,9 +76,8 @@ export async function initCommand(
 	const configPath = join(configDir, "config.json");
 	writeFileSync(configPath, JSON.stringify(config, null, 2));
 
-	// Initialize SQLite database
-	const dbPath = join(configDir, "jira-sync.db");
-	const store = new SyncStore(dbPath);
+	// Initialize FrontmatterStore (creates snapshots directory)
+	const store = new FrontmatterStore(configDir);
 	store.close();
 
 	// Create .gitignore
@@ -97,8 +96,8 @@ export async function initCommand(
 	logger.info("");
 	logger.info("✓ Initialized .backlog-jira/ configuration");
 	logger.info(`  - Config: ${configPath}`);
-	logger.info(`  - Database: ${join(configDir, "jira-sync.db")}`);
-	logger.info(`  - Logs: ${join(configDir, "logs/")}`);
+	logger.info(`  - Snapshots: ${join(configDir, "snapshots/")}`);
+	logger.info(`  - Operations log: ${join(configDir, "ops-log.jsonl")}`);
 	logger.info("");
 	logger.info("Next steps:");
 	logger.info(

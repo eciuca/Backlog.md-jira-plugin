@@ -1,6 +1,6 @@
 import type { Command } from "commander";
 import { BacklogClient } from "../integrations/backlog.ts";
-import { SyncStore } from "../state/store.ts";
+import { FrontmatterStore } from "../state/store.ts";
 import { formatTaskWithJira } from "../ui/display-adapter.ts";
 import { logger } from "../utils/logger.ts";
 
@@ -24,7 +24,7 @@ async function viewTask(
 	taskId: string,
 	options: { plain?: boolean },
 ): Promise<void> {
-	const store = new SyncStore();
+	const store = new FrontmatterStore();
 	const backlog = new BacklogClient();
 
 	try {

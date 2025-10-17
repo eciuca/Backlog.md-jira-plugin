@@ -1,7 +1,7 @@
 import type { Command } from "commander";
 import { BacklogClient } from "../integrations/backlog.ts";
 import { JiraClient } from "../integrations/jira.ts";
-import { SyncStore } from "../state/store.ts";
+import { FrontmatterStore } from "../state/store.ts";
 import { getJiraClientOptions } from "../utils/jira-config.ts";
 import { logger } from "../utils/logger.ts";
 import {
@@ -30,7 +30,7 @@ async function getStatus(options: {
 	json?: boolean;
 	grep?: string;
 }): Promise<void> {
-	const store = new SyncStore();
+	const store = new FrontmatterStore();
 	const backlog = new BacklogClient();
 	const jira = new JiraClient(getJiraClientOptions());
 

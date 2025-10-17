@@ -6,7 +6,7 @@ import {
 	type JiraClientOptions,
 	type JiraIssue,
 } from "../integrations/jira.ts";
-import { SyncStore } from "../state/store.ts";
+import { FrontmatterStore } from "../state/store.ts";
 import { getTaskFilePath, updateJiraMetadata } from "../utils/frontmatter.ts";
 import { getJiraClientOptions } from "../utils/jira-config.ts";
 import { logger } from "../utils/logger.ts";
@@ -51,7 +51,7 @@ export async function pull(options: PullOptions = {}): Promise<PullResult> {
 
 	logger.info({ options }, "Starting pull operation");
 
-	const store = new SyncStore();
+	const store = new FrontmatterStore();
 	const backlog = new BacklogClient();
 	const jira = new JiraClient(getJiraClientOptions());
 

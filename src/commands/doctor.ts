@@ -1,7 +1,7 @@
 import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { SyncStore } from "../state/store.ts";
+import { FrontmatterStore } from "../state/store.ts";
 import { logger } from "../utils/logger.ts";
 
 async function exec(command: string, args: string[] = []): Promise<string> {
@@ -63,7 +63,7 @@ async function checkDatabasePerms(): Promise<void> {
 		throw new Error(".backlog-jira/ not found. Run 'backlog-jira init' first.");
 	}
 
-	const store = new SyncStore();
+	const store = new FrontmatterStore();
 	store.testWriteAccess();
 	store.close();
 	logger.info("  ✓ Database permissions OK");
