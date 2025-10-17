@@ -51,6 +51,13 @@ interface DatabaseInstance {
 	};
 }
 
+// Export both store implementations
+export { FrontmatterStore } from "./frontmatter-store.ts";
+
+// Type alias for the active store implementation
+// Switch this to FrontmatterStore to use file-based storage
+export type ActiveStore = SyncStore;
+
 export class SyncStore {
 	private db: DatabaseInstance; // Database instance (bun:sqlite or better-sqlite3)
 

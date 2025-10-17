@@ -81,19 +81,35 @@ export function updateJiraMetadata(
 		const content = readFileSync(filePath, "utf-8");
 		const { frontmatter, body } = parseFrontmatter(content);
 
-		// Update Jira fields
-		if (metadata.jiraKey !== undefined) {
+	// Update Jira fields - undefined values delete the field
+	if ("jiraKey" in metadata) {
+		if (metadata.jiraKey === undefined) {
+			delete frontmatter.jira_key;
+		} else {
 			frontmatter.jira_key = metadata.jiraKey;
 		}
-		if (metadata.jiraLastSync !== undefined) {
+	}
+	if ("jiraLastSync" in metadata) {
+		if (metadata.jiraLastSync === undefined) {
+			delete frontmatter.jira_last_sync;
+		} else {
 			frontmatter.jira_last_sync = metadata.jiraLastSync;
 		}
-		if (metadata.jiraSyncState !== undefined) {
+	}
+	if ("jiraSyncState" in metadata) {
+		if (metadata.jiraSyncState === undefined) {
+			delete frontmatter.jira_sync_state;
+		} else {
 			frontmatter.jira_sync_state = metadata.jiraSyncState;
 		}
-		if (metadata.jiraUrl !== undefined) {
+	}
+	if ("jiraUrl" in metadata) {
+		if (metadata.jiraUrl === undefined) {
+			delete frontmatter.jira_url;
+		} else {
 			frontmatter.jira_url = metadata.jiraUrl;
 		}
+	}
 
 		// Reconstruct file
 		const newFrontmatter = serializeFrontmatter(frontmatter);
