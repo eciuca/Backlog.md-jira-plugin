@@ -94,6 +94,8 @@ export class JiraClient {
 			try {
 				const transport = await this.createExternalServerTransport(envVars);
 				await this.client.connect(transport);
+				// Wait for server initialization to complete
+				await this.waitForServerReady();
 				if (!this.silentMode) {
 					logger.info(
 						"Successfully connected to external MCP Atlassian server",
@@ -124,6 +126,8 @@ export class JiraClient {
 		try {
 			const transport = this.createDockerTransport(envVars);
 			await this.client.connect(transport);
+			// Wait for server initialization to complete
+			await this.waitForServerReady();
 			if (!this.silentMode) {
 				logger.info(
 					"Successfully connected to Docker-based MCP Atlassian server",
@@ -241,6 +245,42 @@ export class JiraClient {
 	}
 
 	/**
+	 * Wait for MCP server to be fully initialized
+	 * This prevents -32602 errors from requests sent before initialization completes
+	 */
+	private async waitForServerReady(): Promise<void> {
+		const maxRetries = 10;
+		const retryDelay = 500; // ms
+
+		for (let i = 0; i < maxRetries; i++) {
+			try {
+				// Try to list tools as a health check
+				if (this.client) {
+					await this.client.listTools();
+					logger.debug("MCP server is ready");
+					return;
+				}
+			} catch (error) {
+				const errorMessage = error instanceof Error ? error.message : String(error);
+				if (errorMessage.includes("-32602") || errorMessage.includes("before initialization")) {
+					logger.debug(
+						{ attempt: i + 1, maxRetries },
+						"Waiting for MCP server initialization",
+					);
+					await new Promise((resolve) => setTimeout(resolve, retryDelay));
+					continue;
+				}
+				// Other errors should propagate
+				throw error;
+			}
+		}
+
+		throw new Error(
+			"MCP server failed to complete initialization after multiple retries",
+		);
+	}
+
+	/**
 	 * Close the MCP client connection
 	 */
 	async close(): Promise<void> {
@@ -275,6 +315,13 @@ export class JiraClient {
 				);
 			}
 
+			// Check if result indicates an error (isError flag)
+			if (result.isError) {
+				const errorText = this.extractErrorText(result.content);
+				logger.error({ toolName, error: errorText }, "MCP tool returned error");
+				throw new Error(`MCP tool ${toolName} failed: ${errorText}`);
+			}
+
 			// Extract the actual content from the MCP response
 			const resultContent = result.content as
 				| Array<{ type: string; text?: string }>
@@ -282,6 +329,12 @@ export class JiraClient {
 			if (resultContent && resultContent.length > 0) {
 				const content = resultContent[0];
 				if (content.type === "text" && content.text) {
+					// Check if the text content is an error message
+					if (this.isErrorResponse(content.text)) {
+						logger.error({ toolName, response: content.text }, "MCP tool returned error string");
+						throw new Error(`MCP tool ${toolName} failed: ${content.text}`);
+					}
+
 					try {
 						// Try to parse as JSON
 						const parsed = JSON.parse(content.text);
@@ -306,9 +359,48 @@ export class JiraClient {
 			logger.warn({ toolName, result }, "MCP tool returned unexpected format");
 			return result;
 		} catch (error) {
+			// Enhance error message for MCP initialization errors
+			const errorMessage = error instanceof Error ? error.message : String(error);
+			if (errorMessage.includes("-32602") || errorMessage.includes("Invalid request parameters")) {
+				logger.error(
+					{ error, toolName },
+					"MCP tool call failed: Server not initialized. This may indicate the MCP server is still starting up.",
+				);
+				throw new Error(
+					`MCP error -32602: Invalid request parameters. The MCP server may not be fully initialized yet. Tool: ${toolName}`,
+				);
+			}
 			logger.error({ error, toolName }, "MCP tool call failed");
 			throw error;
 		}
+	}
+
+	/**
+	 * Check if a text response is an error message
+	 */
+	private isErrorResponse(text: string): boolean {
+		const lowerText = text.toLowerCase();
+		return (
+			lowerText.includes("error") ||
+			lowerText.includes("failed") ||
+			lowerText.includes("exception") ||
+			lowerText.startsWith("expecting value:")
+		);
+	}
+
+	/**
+	 * Extract error text from MCP response content
+	 */
+	private extractErrorText(
+		content:
+			| Array<{ type: string; text?: string }>
+			| undefined,
+	): string {
+		if (!content || content.length === 0) {
+			return "Unknown error";
+		}
+		const firstContent = content[0];
+		return firstContent.text || "Unknown error";
 	}
 
 	/**
@@ -483,35 +575,52 @@ export class JiraClient {
 			}
 
 			const result = await this.callMcpTool("jira_get_issue", input);
+			
+			// Validate response structure
+			if (typeof result !== "object" || result === null) {
+				logger.error({ result, issueKey }, "Invalid response from jira_get_issue: not an object");
+				throw new Error(
+					`Invalid response from jira_get_issue for ${issueKey}: expected object, got ${typeof result}`,
+				);
+			}
+
 			const typedResult = result as {
-				key: string;
-				id: string;
-				summary: string;
+				key?: string;
+				id?: string;
+				summary?: string;
 				description?: string;
-				status: { name: string; category?: string; color?: string };
-				issue_type?: { name: string };
-				assignee?: { display_name: string };
-				reporter?: { display_name: string };
-				priority?: { name: string };
+				status?: { name?: string; category?: string; color?: string } | null;
+				issue_type?: { name?: string } | null;
+				assignee?: { display_name?: string } | null;
+				reporter?: { display_name?: string } | null;
+				priority?: { name?: string } | null;
 				labels?: string[];
-				created: string;
-				updated: string;
+				created?: string;
+				updated?: string;
 				[key: string]: unknown;
 			};
+
+			// Validate required fields
+			if (!typedResult.key || !typedResult.id) {
+				logger.error({ result: typedResult, issueKey }, "Invalid response: missing key or id");
+				throw new Error(
+					`Invalid response from jira_get_issue for ${issueKey}: missing required fields (key, id)`,
+				);
+			}
 
 			const issue: JiraIssue = {
 				key: typedResult.key,
 				id: typedResult.id,
-				summary: typedResult.summary,
+				summary: typedResult.summary || "",
 				description: typedResult.description,
-				status: typedResult.status.name,
+				status: typedResult.status?.name || "Unknown",
 				issueType: typedResult.issue_type?.name || "Task",
 				assignee: typedResult.assignee?.display_name,
 				reporter: typedResult.reporter?.display_name,
 				priority: typedResult.priority?.name,
 				labels: typedResult.labels || [],
-				created: typedResult.created,
-				updated: typedResult.updated,
+				created: typedResult.created || "",
+				updated: typedResult.updated || "",
 				fields: typedResult as Record<string, unknown>,
 			};
 
