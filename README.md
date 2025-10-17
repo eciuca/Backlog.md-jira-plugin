@@ -44,8 +44,10 @@ The plugin follows a **zero-coupling architecture** that ensures complete separa
    - No direct file manipulation or internal API calls
 
 2. **External State Management**:
-   - SQLite database (`.backlog-jira/jira-sync.db`) stores all plugin state
-   - Mapping data, sync history, and snapshots stored separately
+   - File-based storage in `.backlog-jira/` stores all plugin state
+   - Task frontmatter stores Jira metadata (jira_key, jira_last_sync, etc.)
+   - Snapshots stored as JSON files in `.backlog-jira/snapshots/`
+   - Operations log in `.backlog-jira/ops-log.jsonl`
    - No modifications to Backlog.md data structures
 
 3. **3-Way Merge**:
@@ -67,30 +69,35 @@ The plugin follows a **zero-coupling architecture** that ensures complete separa
 └──────────────┘         └─────────────────┘         └──────────┘
                                  │
                                  ▼
-                         ┌───────────────┐
-                         │ SQLite Store  │
-                         │  - Mappings   │
-                         │  - Snapshots  │
-                         │  - Sync State │
-                         └───────────────┘
+                         ┌───────────────────┐
+                         │ File-Based Store  │
+                         │ - Frontmatter     │
+                         │ - Snapshots       │
+                         │ - Ops Log         │
+                         └───────────────────┘
 ```
 
 **Key Components**:
 
 - **Integration Layer**: Wrappers for Backlog CLI and MCP Atlassian client
-- **State Store**: SQLite database with tables for mappings, snapshots, sync state, and operations log
+- **State Store**: File-based storage using task frontmatter, JSON snapshots, and JSONL operations log
 - **Sync Engine**: Handles push, pull, and bidirectional sync with conflict resolution
 - **Configuration System**: JSON-based configuration with project-specific overrides
 - **Logger**: Pino-based logging with secret redaction and structured output
 
-### Database Schema
+### Storage Architecture
 
-The plugin maintains state in `.backlog-jira/jira-sync.db`:
+The plugin uses file-based storage in `.backlog-jira/`:
 
-- **`mappings`**: Links Backlog task IDs to Jira issue keys
-- **`snapshots`**: Stores payload snapshots for 3-way merge (separate for Backlog and Jira)
-- **`sync_state`**: Tracks last sync timestamps and status per task
-- **`ops_log`**: Audit log of all sync operations
+- **Task Frontmatter**: Jira metadata (jira_key, jira_last_sync, jira_sync_state) stored directly in task files
+- **Snapshots**: Payload snapshots for 3-way merge stored in `.backlog-jira/snapshots/<task-id>-<side>.json`
+- **Operations Log**: Audit log in `.backlog-jira/ops-log.jsonl` (JSONL format)
+
+**Benefits:**
+- ✅ Git-friendly (all metadata is version controlled)
+- ✅ Human-readable (no binary database files)
+- ✅ Single source of truth (metadata lives with the task)
+- ✅ No external dependencies (no SQLite required)
 
 ## Features
 
@@ -189,8 +196,9 @@ backlog-jira init
 
 This creates `.backlog-jira/` directory with:
 - `config.json` - Configuration file
-- `jira-sync.db` - SQLite database
-- `logs/` - Log directory
+- `snapshots/` - Snapshot directory for 3-way merge
+- `ops-log.jsonl` - Operations audit log
+- `.gitignore` - Excludes sensitive files
 
 ### 2. Configure MCP Atlassian Server
 
@@ -412,8 +420,9 @@ backlog-jira init
 
 Creates:
 - `.backlog-jira/config.json`
-- `.backlog-jira/jira-sync.db`
-- `.backlog-jira/logs/`
+- `.backlog-jira/snapshots/`
+- `.backlog-jira/ops-log.jsonl`
+- `.backlog-jira/.gitignore`
 
 ### `backlog-jira doctor`
 
@@ -814,16 +823,16 @@ cat .backlog-jira/logs/sync.log | grep "AC"
    backlog-jira sync task-123 --strategy prompt
    ```
 
-#### Issue: "Permission denied on database"
+#### Issue: "Cannot write to .backlog-jira directory"
 
 **Solution:**
 ```bash
-# Fix database permissions
-chmod 644 .backlog-jira/jira-sync.db
+# Fix directory permissions
 chmod 755 .backlog-jira
+chmod 755 .backlog-jira/snapshots
 
 # Rebuild if corrupted
-rm .backlog-jira/jira-sync.db
+rm -rf .backlog-jira
 backlog-jira init
 ```
 
@@ -923,10 +932,11 @@ backlog-jira/
 │       └── normalizer.ts
 ├── docs/                         # Documentation
 ├── backlog/                      # Backlog.md tasks
-├── .backlog-jira/               # Plugin state (gitignored)
+├── .backlog-jira/               # Plugin state
 │   ├── config.json
-│   ├── jira-sync.db
-│   └── logs/
+│   ├── snapshots/               # Snapshot JSON files
+│   ├── ops-log.jsonl            # Operations audit log
+│   └── .gitignore
 ├── package.json
 ├── tsconfig.json
 └── README.md
