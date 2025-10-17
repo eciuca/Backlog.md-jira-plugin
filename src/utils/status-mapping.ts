@@ -40,11 +40,11 @@ export function loadStatusMapping(): StatusMappingConfig {
 		const backlogToJira =
 			config.backlog?.statusMapping || getDefaultBacklogToJiraMapping();
 
-		// Build reverse mapping (Jira → Backlog)
+		// Build reverse mapping (Jira → Backlog), case-insensitive keys
 		const jiraToBacklog: Record<string, string> = {};
 		for (const [backlogStatus, jiraStatuses] of Object.entries(backlogToJira)) {
 			for (const jiraStatus of jiraStatuses as string[]) {
-				jiraToBacklog[jiraStatus] = backlogStatus;
+				jiraToBacklog[jiraStatus.toLowerCase()] = backlogStatus;
 			}
 		}
 
@@ -58,9 +58,14 @@ export function loadStatusMapping(): StatusMappingConfig {
 			{ error },
 			"Failed to load status mapping config, using defaults",
 		);
+		const defaults = getDefaultBacklogToJiraMapping();
+		const lowered: Record<string, string> = {};
+		for (const [backlogStatus, jiraStatuses] of Object.entries(defaults)) {
+			for (const s of jiraStatuses) lowered[s.toLowerCase()] = backlogStatus;
+		}
 		return {
-			backlogToJira: getDefaultBacklogToJiraMapping(),
-			jiraToBacklog: getDefaultJiraToBacklogMapping(),
+			backlogToJira: defaults,
+			jiraToBacklog: lowered,
 		};
 	}
 }
@@ -104,17 +109,25 @@ export function mapJiraStatusToBacklog(
 ): string {
 	const mapping = loadStatusMapping();
 
-	// Check project-specific override first
+	// Check project-specific override first (case-insensitive)
 	if (projectKey && mapping.projectOverrides?.[projectKey]) {
-		const projectMapping =
-			mapping.projectOverrides[projectKey].jiraToBacklog[jiraStatus];
-		if (projectMapping) {
-			return projectMapping;
+		const override = mapping.projectOverrides[projectKey].jiraToBacklog;
+		if (override) {
+			const lower = jiraStatus.toLowerCase();
+			const exact = override[jiraStatus];
+			const lowerHit = (override as Record<string, string>)[lower];
+			if (exact) return exact;
+			if (lowerHit) return lowerHit;
+			// Last resort: scan keys case-insensitively
+			for (const [k, v] of Object.entries(override)) {
+				if (k.toLowerCase() === lower) return v;
+			}
 		}
 	}
 
-	// Use global mapping
-	return mapping.jiraToBacklog[jiraStatus] || jiraStatus;
+	// Use global mapping (case-insensitive)
+	const lower = jiraStatus.toLowerCase();
+	return mapping.jiraToBacklog[lower] || mapping.jiraToBacklog[jiraStatus] || jiraStatus;
 }
 
 /**

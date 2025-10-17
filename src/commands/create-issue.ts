@@ -86,7 +86,7 @@ export async function createIssue(
 
 		// Build Jira issue from Backlog task
 		logger.debug({ taskId }, "Building Jira issue from Backlog task");
-		const issueData = buildJiraIssueFromBacklogTask(task);
+		const issueData = buildJiraIssueFromBacklogTask(task, projectKey);
 
 		if (dryRun) {
 			logger.info(
@@ -231,7 +231,7 @@ export async function createIssue(
 /**
  * Build Jira issue data from Backlog task
  */
-function buildJiraIssueFromBacklogTask(task: BacklogTask): {
+function buildJiraIssueFromBacklogTask(task: BacklogTask, projectKey?: string): {
 	summary: string;
 	description?: string;
 	status?: string;
@@ -255,7 +255,7 @@ function buildJiraIssueFromBacklogTask(task: BacklogTask): {
 
 	// Priority (map from Backlog to Jira)
 	const priority = task.priority
-		? mapBacklogPriorityToJira(task.priority)
+		? mapBacklogPriorityToJira(task.priority, projectKey)
 		: undefined;
 
 	// Labels

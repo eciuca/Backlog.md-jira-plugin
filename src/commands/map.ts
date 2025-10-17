@@ -152,6 +152,7 @@ async function autoMap(options: {
 			console.log("\n(Dry run - no changes made)");
 		}
 	} finally {
+		try { await jira.close(); } catch {}
 		store.close();
 	}
 }
@@ -256,6 +257,7 @@ async function interactiveMap(): Promise<void> {
 		console.log("\n✅ Interactive mapping complete");
 	} finally {
 		rl.close();
+		try { await jira.close(); } catch {}
 		store.close();
 	}
 }
@@ -369,8 +371,9 @@ async function linkTask(
 		await createMapping(store, backlog, jira, taskId, jiraKey);
 
 		console.log(`\n✅ Successfully linked ${taskId} → ${jiraKey}`);
-		logger.info({ taskId, jiraKey }, "Link task operation completed");
-	} catch (error) {
+			logger.info({ taskId, jiraKey }, "Link task operation completed");
+			process.exit(0);
+		} catch (error) {
 		if (error instanceof Error && error.message.includes("already linked")) {
 			// Already logged, just rethrow
 			throw error;

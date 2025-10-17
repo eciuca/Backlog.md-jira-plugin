@@ -111,6 +111,11 @@ export async function push(options: PushOptions = {}): Promise<PushResult> {
 			JSON.stringify(result),
 		);
 	} finally {
+		try {
+			await jira.close();
+		} catch (e) {
+			// ignore close errors
+		}
 		store.close();
 		// Restore original log level
 		logger.level = originalLevel;
@@ -413,7 +418,7 @@ async function buildJiraUpdates(
 
 	// Priority (needs mapping from Backlog priority to Jira priority)
 	if (task.priority) {
-		const mappedPriority = mapBacklogPriorityToJira(task.priority);
+		const mappedPriority = mapBacklogPriorityToJira(task.priority, projectKey);
 		if (mappedPriority && mappedPriority !== currentIssue.priority) {
 			fields.priority = mappedPriority;
 			logger.debug(
@@ -421,6 +426,7 @@ async function buildJiraUpdates(
 					taskId: task.id,
 					backlogPriority: task.priority,
 					jiraPriority: mappedPriority,
+					projectKey,
 				},
 				"Mapped Backlog priority to Jira priority",
 			);

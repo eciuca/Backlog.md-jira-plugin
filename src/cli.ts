@@ -117,6 +117,7 @@ program
 						`\n✅ Successfully created Jira issue ${result.jiraKey} for task ${result.taskId}`,
 					);
 				}
+				process.exit(0);
 			} else {
 				console.error(`\n❌ Failed to create Jira issue: ${result.error}`);
 				process.exit(1);
@@ -157,6 +158,7 @@ program
 				}
 				process.exit(1);
 			}
+			process.exit(0);
 		} catch (error) {
 			console.error(
 				"Error:",
@@ -200,6 +202,7 @@ program
 				}
 				process.exit(1);
 			}
+			process.exit(0);
 		} catch (error) {
 			console.error(
 				"Error:",
@@ -255,6 +258,7 @@ program
 				}
 				process.exit(1);
 			}
+			process.exit(0);
 		} catch (error) {
 			console.error(
 				"Error:",
