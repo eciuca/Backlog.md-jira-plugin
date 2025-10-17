@@ -159,33 +159,32 @@ describe("init command", () => {
 		});
 	});
 
-	describe("database initialization", () => {
-		it("should create SQLite database file", async () => {
+	describe("storage initialization", () => {
+		it("should create snapshots directory", async () => {
 			// Mock prompts to skip agent instructions
 			const promptsMock = await import("prompts");
 			spyOn(promptsMock, "default").mockResolvedValue({ shouldSetup: false });
 
 			await initCommand({ baseDir: TEST_DIR });
 
-			const dbPath = join(TEST_CONFIG_DIR, "jira-sync.db");
-			expect(existsSync(dbPath)).toBe(true);
+			const snapshotsDir = join(TEST_CONFIG_DIR, "snapshots");
+			expect(existsSync(snapshotsDir)).toBe(true);
 		});
 
-		it("should create database with correct schema", async () => {
+		it("should create store with correct structure", async () => {
 			// Mock prompts to skip agent instructions
 			const promptsMock = await import("prompts");
 			spyOn(promptsMock, "default").mockResolvedValue({ shouldSetup: false });
 
 			await initCommand({ baseDir: TEST_DIR });
 
-			// Open database and verify tables exist
-			const { SyncStore } = await import("../state/store.ts");
-			const dbPath = join(TEST_CONFIG_DIR, "jira-sync.db");
-			const store = new SyncStore(dbPath);
+			// Initialize store and verify it works
+			const { FrontmatterStore } = await import("../state/store.ts");
+			const store = new FrontmatterStore(TEST_CONFIG_DIR);
 
-			// Try to perform a basic operation to verify schema
+			// Try to perform a basic operation to verify structure
 			try {
-				// This should not throw if schema is correct
+				// This should not throw if structure is correct
 				store.getAllMappings();
 				expect(true).toBe(true);
 			} finally {
@@ -324,10 +323,10 @@ describe("init command", () => {
 
 			await initCommand({ baseDir: TEST_DIR });
 
-			// Verify all expected files exist
+			// Verify all expected files and directories exist
 			const expectedFiles = [
 				join(TEST_CONFIG_DIR, "config.json"),
-				join(TEST_CONFIG_DIR, "jira-sync.db"),
+				join(TEST_CONFIG_DIR, "snapshots"),
 				join(TEST_CONFIG_DIR, ".gitignore"),
 			];
 

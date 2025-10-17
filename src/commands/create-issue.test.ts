@@ -17,6 +17,7 @@ import { createIssue } from "./create-issue.ts";
 let testDir: string;
 let configDir: string;
 let dbPath: string;
+let originalCwd: string;
 
 // Mock the dependencies
 const mockBacklogClient = {
@@ -76,17 +77,41 @@ mock.module("../utils/jira-config.ts", () => ({
 	getJiraClientOptions: mock(() => ({})),
 }));
 
-mock.module("../utils/frontmatter.ts", () => ({
-	getTaskFilePath: mock((taskId: string) => `/path/to/${taskId}.md`),
-	updateJiraMetadata: mock(() => {}),
-}));
+// Helper to create a real task file
+function createTaskFile(taskId: string, title: string, jiraKey?: string): void {
+	const { mkdirSync, writeFileSync } = require("node:fs");
+	const tasksDir = join(testDir, "backlog", "tasks");
+	mkdirSync(tasksDir, { recursive: true });
+
+	const frontmatter: string[] = [
+		`id: ${taskId}`,
+		`title: ${title}`,
+		`status: To Do`,
+		`created: 2025-01-01`,
+		`updated: 2025-01-01`,
+	];
+
+	if (jiraKey) {
+		frontmatter.push(`jira_key: ${jiraKey}`);
+	}
+
+	const content = `---\n${frontmatter.join("\n")}\n---\n\n## Description\n\nTest task\n`;
+	const filePath = join(tasksDir, `${taskId} - ${title}.md`);
+	writeFileSync(filePath, content, "utf-8");
+}
 
 describe("createIssue", () => {
 	beforeEach(() => {
+		// Save original working directory
+		originalCwd = process.cwd();
+
 		// Create unique test directory and config
 		testDir = uniqueTestDir("create-issue-test");
 		configDir = join(testDir, ".backlog-jira");
 		dbPath = join(configDir, "jira-sync.db");
+
+		// Change to test directory so FrontmatterStore can find task files
+		process.chdir(testDir);
 
 		// Create real config file
 		const configPath = join(configDir, "config.json");
@@ -97,13 +122,9 @@ describe("createIssue", () => {
 			},
 		});
 
-		// Create a real database in the isolated test directory
-		const { SyncStore } = require("../state/store.ts");
-		const store = new SyncStore(dbPath);
-
-		// Add the "task-mapped" mapping for tests
-		store.addMapping("task-mapped", "TEST-100");
-		store.close();
+		// Create real task files for testing
+		createTaskFile("task-123", "Test Task");
+		createTaskFile("task-mapped", "Mapped Task", "TEST-100");
 
 		// Reset all mocks before each test
 		mockBacklogClient.getTask.mockClear();
@@ -112,6 +133,9 @@ describe("createIssue", () => {
 	});
 
 	afterEach(() => {
+		// Restore original working directory
+		process.chdir(originalCwd);
+
 		// Cleanup test directory
 		cleanupDir(testDir);
 	});
@@ -137,15 +161,11 @@ describe("createIssue", () => {
 		expect(createCall[1]).toBe("Task"); // issueType
 		expect(createCall[2]).toBe("Test Task"); // summary
 
-		// Verify database operations by checking the actual database
-		const { SyncStore } = require("../state/store.ts");
-		const store = new SyncStore(dbPath);
-
-		const mapping = store.getMapping("task-123");
-		expect(mapping).not.toBeNull();
-		expect(mapping?.jiraKey).toBe("TEST-123");
-
-		store.close();
+		// Verify storage operations by checking task file
+		const { getJiraMetadata, getTaskFilePath } = require("../utils/frontmatter.ts");
+		const taskPath = getTaskFilePath("task-123");
+		const metadata = getJiraMetadata(taskPath);
+		expect(metadata.jiraKey).toBe("TEST-123");
 
 		// Verify cleanup
 		expect(mockJiraClient.close).toHaveBeenCalled();
@@ -196,13 +216,10 @@ describe("createIssue", () => {
 		expect(mockJiraClient.createIssue).not.toHaveBeenCalled();
 
 		// Verify no mapping was created in dry-run
-		const { SyncStore } = require("../state/store.ts");
-		const store = new SyncStore(dbPath);
-
-		const mapping = store.getMapping("task-123");
-		expect(mapping).toBeNull();
-
-		store.close();
+		const { getJiraMetadata, getTaskFilePath } = require("../utils/frontmatter.ts");
+		const taskPath = getTaskFilePath("task-123");
+		const metadata = getJiraMetadata(taskPath);
+		expect(metadata.jiraKey).toBeUndefined();
 	});
 
 	it("should support custom issue type", async () => {
