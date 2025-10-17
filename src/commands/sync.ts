@@ -39,6 +39,8 @@ export interface SyncResult {
 	}>;
 	failed: Array<{ taskId: string; error: string }>;
 	skipped: string[];
+	// Optional user-facing hints to display (e.g., proxy login guidance)
+	hints?: string[];
 }
 
 export interface Conflict {
@@ -62,17 +64,70 @@ export interface FieldConflict {
  * Bidirectional sync with 3-way merge and conflict resolution
  */
 export async function sync(options: SyncOptions = {}): Promise<SyncResult> {
+	// In non-verbose mode, filter noisy FastMCP stderr/stdout chatter from console
+	let restoreIo: (() => void) | null = null;
+	if (!options.verbose) {
+		const patterns = [
+			/\bFastMCP\b/,
+			/\bmcp-jira\b/,
+			/\batlassian\.rest_client\b/,
+			/\btool_manager\.py:/,
+			/Traceback \(most recent call last\):/,
+			/Unexpected return value type from `jira\.get_issue`/,
+			/Starting MCP server/,
+			/ERROR\s-\s/,
+			/INFO\s-\s/,
+		];
+		const shouldFilter = (s: string) => patterns.some((p) => p.test(s));
+		const origStdout = process.stdout.write.bind(process.stdout) as (
+			chunk: any,
+			encoding?: BufferEncoding | ((err?: Error) => void),
+			cb?: (err?: Error) => void,
+		) => boolean;
+		const origStderr = process.stderr.write.bind(process.stderr) as (
+			chunk: any,
+			encoding?: BufferEncoding | ((err?: Error) => void),
+			cb?: (err?: Error) => void,
+		) => boolean;
+		// @ts-ignore Node typings allow any
+		process.stdout.write = (chunk: any, enc?: any, cb?: any) => {
+			try {
+				const s = typeof chunk === "string" ? chunk : chunk?.toString?.() ?? "";
+				if (s && shouldFilter(s)) return true;
+			} catch {}
+			return origStdout(chunk, enc as any, cb as any);
+		};
+		// @ts-ignore Node typings allow any
+		process.stderr.write = (chunk: any, enc?: any, cb?: any) => {
+			try {
+				const s = typeof chunk === "string" ? chunk : chunk?.toString?.() ?? "";
+				if (s && shouldFilter(s)) return true;
+			} catch {}
+			return origStderr(chunk, enc as any, cb as any);
+		};
+		restoreIo = () => {
+			// @ts-ignore restore
+			process.stdout.write = origStdout;
+			// @ts-ignore restore
+			process.stderr.write = origStderr;
+		};
+	}
 	// Set log level based on verbose flag
 	const originalLevel = logger.level;
 	if (!options.verbose) {
 		logger.level = "error"; // Suppress info/debug logs in non-verbose mode
 	}
 
-	logger.info({ options }, "Starting sync operation");
+	if (options.verbose) {
+		logger.info({ options }, "Starting sync operation");
+	}
 
 	const store = new FrontmatterStore();
 	const backlog = new BacklogClient();
-	const jira = new JiraClient(getJiraClientOptions());
+	// Build Jira client options separately (readability + allows silent mode)
+	const jiraClientOptions = getJiraClientOptions();
+	jiraClientOptions.silentMode = !options.verbose;
+	const jira = new JiraClient(jiraClientOptions);
 
 	const config = loadConfig();
 	const defaultStrategy =
@@ -85,6 +140,7 @@ export async function sync(options: SyncOptions = {}): Promise<SyncResult> {
 		conflicts: [],
 		failed: [],
 		skipped: [],
+		hints: [],
 	};
 
 	try {
@@ -120,10 +176,29 @@ export async function sync(options: SyncOptions = {}): Promise<SyncResult> {
 
 					logger.info({ taskId, outcome }, "Sync task completed");
 				} catch (error) {
-					const errorMsg =
-						error instanceof Error ? error.message : String(error);
-					result.failed.push({ taskId, error: errorMsg });
-					logger.error({ taskId, error: errorMsg }, "Failed to sync task");
+					const errorMsg = error instanceof Error ? error.message : String(error);
+					// Get jira key for nicer message
+					const m = store.getMapping(taskId);
+					const jiraKey = m?.jiraKey;
+					const minimal = `${taskId}${jiraKey ? ` (${jiraKey})` : ""} sync failed`;
+					// Push minimal message for user-friendly output
+					result.failed.push({ taskId, error: minimal });
+					// Smart proxy hint detection
+					const em = errorMsg.toLowerCase();
+					if (
+						em.includes("expecting value") ||
+						em.includes("jsondecodeerror") ||
+						em.includes("proxy authentication") ||
+						em.includes("login") && em.includes("html")
+					) {
+						const jiraUrl = process.env.JIRA_URL || "your Jira URL";
+						const hint = `Hint: If you're behind a corporate proxy, open ${jiraUrl} in your browser, sign in, then retry. Use --verbose for details.`;
+						if (!result.hints!.includes(hint)) result.hints!.push(hint);
+					}
+					// Only log detailed error when verbose
+					if (options.verbose) {
+						logger.error({ taskId, error: errorMsg }, "Failed to sync task");
+					}
 					result.success = false;
 				}
 			});
@@ -140,11 +215,15 @@ export async function sync(options: SyncOptions = {}): Promise<SyncResult> {
 		);
 	} finally {
 		store.close();
+		// Restore IO filters if applied
+		if (restoreIo) restoreIo();
 		// Restore original log level
 		logger.level = originalLevel;
 	}
 
-	logger.info({ result }, "Sync operation completed");
+	if (options.verbose) {
+		logger.info({ result }, "Sync operation completed");
+	}
 	return result;
 }
 

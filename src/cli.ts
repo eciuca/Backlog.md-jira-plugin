@@ -241,8 +241,17 @@ program
 			}
 			if (result.failed.length > 0) {
 				console.log("\nFailures:");
+				// Print minimal, user-friendly failure lines
 				for (const fail of result.failed) {
-					console.log(`  ${fail.taskId}: ${fail.error}`);
+					console.log(`  ${fail.error}`);
+				}
+				// Optional smart hints (e.g., proxy/login)
+				if (result.hints && result.hints.length > 0) {
+					console.log("\nHints:");
+					for (const h of result.hints) console.log(`  ${h}`);
+				}
+				if (!options.verbose) {
+					console.log("\nTip: run with --verbose to see additional logs.");
 				}
 				process.exit(1);
 			}

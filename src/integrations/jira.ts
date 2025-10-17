@@ -45,6 +45,7 @@ export interface JiraClientOptions {
 	dockerArgs?: string[];
 	fallbackToDocker?: boolean;
 	silentMode?: boolean;
+	extraEnv?: Record<string, string>;
 }
 
 export class JiraClient {
@@ -56,6 +57,7 @@ export class JiraClient {
 	private dockerArgs: string[];
 	private fallbackToDocker: boolean;
 	private silentMode: boolean;
+	private extraEnv: Record<string, string>;
 
 	constructor(options: JiraClientOptions = {}) {
 		this.dockerImage =
@@ -66,6 +68,20 @@ export class JiraClient {
 		this.dockerArgs = options.dockerArgs || [];
 		this.fallbackToDocker = options.fallbackToDocker !== false; // default true
 		this.silentMode = options.silentMode || false;
+		this.extraEnv = options.extraEnv || {};
+		// In silent mode, ask the MCP server to reduce its own logs if supported
+		if (this.silentMode) {
+			const defaults: Record<string, string> = {
+				LOG_LEVEL: "CRITICAL",
+				MCP_LOG_LEVEL: "CRITICAL",
+				FASTMCP_LOG_LEVEL: "CRITICAL",
+				MCP_ATLASSIAN_LOG_LEVEL: "CRITICAL",
+				PYTHONLOGLEVEL: "CRITICAL",
+			};
+			for (const [k, v] of Object.entries(defaults)) {
+				if (!(k in this.extraEnv)) this.extraEnv[k] = v;
+			}
+		}
 	}
 
 	/**
@@ -169,6 +185,8 @@ export class JiraClient {
 		const envVars: Record<string, string> = {
 			...process.env,
 			JIRA_URL: jiraUrl,
+			// Merge any extra env vars from configuration (e.g., proxies)
+			...this.extraEnv,
 		};
 
 		if (hasPersonalTokenAuth && jiraPersonalToken) {
@@ -213,6 +231,15 @@ export class JiraClient {
 			dockerArgs.push("-e", "JIRA_PERSONAL_TOKEN");
 		} else if (envVars.JIRA_USERNAME && envVars.JIRA_API_TOKEN) {
 			dockerArgs.push("-e", "JIRA_USERNAME", "-e", "JIRA_API_TOKEN");
+		}
+
+		// Pass through any extra environment variables to the container
+		for (const key of Object.keys(this.extraEnv)) {
+			// Avoid duplicating credentials already handled above
+			if (["JIRA_URL", "JIRA_PERSONAL_TOKEN", "JIRA_USERNAME", "JIRA_API_TOKEN"].includes(key)) {
+				continue;
+			}
+			dockerArgs.push("-e", key);
 		}
 
 		// Add custom Docker arguments (e.g., --dns, --dns-search) before the image
@@ -318,7 +345,11 @@ export class JiraClient {
 			// Check if result indicates an error (isError flag)
 			if (result.isError) {
 				const errorText = this.extractErrorText(result.content);
-				logger.error({ toolName, error: errorText, resultContent: result.content }, "MCP tool returned error");
+				if (this.silentMode) {
+					logger.debug({ toolName, error: errorText }, "MCP tool returned error");
+				} else {
+					logger.error({ toolName, error: errorText, resultContent: result.content }, "MCP tool returned error");
+				}
 				
 				// Check if this is a proxy/JSON error
 				if (errorText.includes("Expecting value") || errorText.includes("JSONDecodeError")) {
@@ -330,6 +361,17 @@ export class JiraClient {
 						`2. Complete the proxy authentication/login\n` +
 						`3. Try the command again\n` +
 						`\nOriginal error: ${errorText}`,
+					);
+				}
+
+				// Generic tool error (often hides proxy/HTML issues). Provide guidance.
+				if (errorText.startsWith("Error calling tool")) {
+					throw new Error(
+						`MCP tool ${toolName} failed with a server-side error.\n` +
+						`This can happen if Jira returned HTML (e.g., proxy login page) instead of JSON.\n` +
+						`Try: backlog-jira mcp start --debug to inspect logs, and consider adding HTTP(S)_PROXY/NO_PROXY to .backlog-jira/config.json -> mcp.envVars.\n` +
+						`If you're behind a corporate proxy, authenticate in the browser to ${process.env.JIRA_URL || "your Jira URL"} first.\n` +
+						`Original error: ${errorText}`,
 					);
 				}
 				
@@ -371,7 +413,11 @@ export class JiraClient {
 				return result.structuredContent;
 			}
 
-			logger.warn({ toolName, result }, "MCP tool returned unexpected format");
+			if (this.silentMode) {
+				logger.debug({ toolName }, "MCP tool returned unexpected format");
+			} else {
+				logger.warn({ toolName, result }, "MCP tool returned unexpected format");
+			}
 			return result;
 		} catch (error) {
 			// Enhance error message for common issues
@@ -380,10 +426,17 @@ export class JiraClient {
 			
 			// Check for MCP initialization errors
 			if (errorMessage.includes("-32602") || errorMessage.includes("Invalid request parameters")) {
-				logger.error(
-					{ error, toolName },
-					"MCP tool call failed: Server not initialized. This may indicate the MCP server is still starting up.",
-				);
+				if (this.silentMode) {
+					logger.debug(
+						{ error: errorMessage, toolName },
+						"MCP tool call failed: Server not initialized (likely starting up)",
+					);
+				} else {
+					logger.error(
+						{ error, toolName },
+						"MCP tool call failed: Server not initialized. This may indicate the MCP server is still starting up.",
+					);
+				}
 				throw new Error(
 					`MCP error -32602: Invalid request parameters. The MCP server may not be fully initialized yet. Tool: ${toolName}`,
 				);
@@ -405,11 +458,19 @@ export class JiraClient {
 					`\nAlternatively, configure proxy settings or DNS to bypass authentication for the Docker container.\n` +
 					`\nOriginal error: ${errorMessage}`,
 				);
+			if (this.silentMode) {
+				logger.debug({ error: proxyError.message, toolName }, "Proxy authentication required");
+			} else {
 				logger.error({ error: proxyError, toolName }, "Proxy authentication required");
-				throw proxyError;
+			}
+			throw proxyError;
 			}
 			
-			logger.error({ error, toolName }, "MCP tool call failed");
+			if (this.silentMode) {
+				logger.debug({ error: errorMessage, toolName }, "MCP tool call failed");
+			} else {
+				logger.error({ error, toolName }, "MCP tool call failed");
+			}
 			throw error;
 		}
 	}
@@ -455,7 +516,8 @@ export class JiraClient {
 			return "Unknown error";
 		}
 		const firstContent = content[0];
-		return firstContent.text || "Unknown error";
+		const text = firstContent.text || "Unknown error";
+		return text.trim();
 	}
 	
 	/**
@@ -720,7 +782,11 @@ export class JiraClient {
 			logger.info({ issueKey }, "Retrieved Jira issue");
 			return issue;
 		} catch (error) {
-			logger.error({ error, issueKey }, "Failed to get Jira issue");
+			if (this.silentMode) {
+				logger.debug({ issueKey, err: error instanceof Error ? error.message : String(error) }, "Failed to get Jira issue");
+			} else {
+				logger.error({ error, issueKey }, "Failed to get Jira issue");
+			}
 			throw error;
 		}
 	}
@@ -768,7 +834,11 @@ export class JiraClient {
 
 			logger.info({ issueKey, updates }, "Updated Jira issue");
 		} catch (error) {
-			logger.error({ error, issueKey, updates }, "Failed to update Jira issue");
+			if (this.silentMode) {
+				logger.debug({ issueKey, err: error instanceof Error ? error.message : String(error) }, "Failed to update Jira issue");
+			} else {
+				logger.error({ error, issueKey, updates }, "Failed to update Jira issue");
+			}
 			throw error;
 		}
 	}
@@ -797,7 +867,11 @@ export class JiraClient {
 			);
 			return result.transitions;
 		} catch (error) {
-			logger.error({ error, issueKey }, "Failed to get Jira transitions");
+			if (this.silentMode) {
+				logger.debug({ issueKey, err: error instanceof Error ? error.message : String(error) }, "Failed to get Jira transitions");
+			} else {
+				logger.error({ error, issueKey }, "Failed to get Jira transitions");
+			}
 			throw error;
 		}
 	}
@@ -829,10 +903,14 @@ export class JiraClient {
 			await this.callMcpTool("jira_transition_issue", input);
 			logger.info({ issueKey, transitionId }, "Transitioned Jira issue");
 		} catch (error) {
-			logger.error(
-				{ error, issueKey, transitionId },
-				"Failed to transition Jira issue",
-			);
+			if (this.silentMode) {
+				logger.debug({ issueKey, transitionId, err: error instanceof Error ? error.message : String(error) }, "Failed to transition Jira issue");
+			} else {
+				logger.error(
+					{ error, issueKey, transitionId },
+					"Failed to transition Jira issue",
+				);
+			}
 			throw error;
 		}
 	}
