@@ -5,7 +5,7 @@ status: Done
 assignee:
   - '@myself'
 created_date: '2025-10-17 09:53'
-updated_date: '2025-10-17 09:57'
+updated_date: '2025-10-17 10:13'
 labels:
   - bug
   - jira-sync
@@ -65,4 +65,18 @@ Fixed two critical issues causing Jira sync failures:
 - All 235 existing tests pass
 - Build completes successfully without TypeScript errors
 - Error paths are properly validated and logged
+
+## Proxy Authentication Detection (Additional Work)
+Added comprehensive detection for corporate proxy authentication issues:
+
+- Enhanced `isErrorResponse()` to detect HTML login pages and proxy redirects
+- Added `formatErrorMessage()` with specific guidance for proxy authentication
+- Detect JSON parsing errors ("Expecting value: line 1 column 1") from HTML responses
+- Check for proxy errors in multiple locations:
+  - MCP isError responses
+  - Catch block error messages
+  - Error strings from MCP server
+- Provide actionable resolution steps in error messages
+
+**Note**: Some proxy errors occur inside the MCP Docker container before reaching our client code. The detection catches errors when they are propagated to the client layer.
 <!-- SECTION:NOTES:END -->
