@@ -318,7 +318,21 @@ export class JiraClient {
 			// Check if result indicates an error (isError flag)
 			if (result.isError) {
 				const errorText = this.extractErrorText(result.content);
-				logger.error({ toolName, error: errorText }, "MCP tool returned error");
+				logger.error({ toolName, error: errorText, resultContent: result.content }, "MCP tool returned error");
+				
+				// Check if this is a proxy/JSON error
+				if (errorText.includes("Expecting value") || errorText.includes("JSONDecodeError")) {
+					throw new Error(
+						`Proxy authentication required: The MCP server is receiving HTML instead of JSON from Jira.\n` +
+						`This typically happens when your corporate proxy requires browser-based authentication.\n` +
+						`\nTo resolve this:\n` +
+						`1. Open your browser and navigate to your Jira URL: ${process.env.JIRA_URL || "(not set)"}\n` +
+						`2. Complete the proxy authentication/login\n` +
+						`3. Try the command again\n` +
+						`\nOriginal error: ${errorText}`,
+					);
+				}
+				
 				throw new Error(`MCP tool ${toolName} failed: ${errorText}`);
 			}
 
@@ -360,8 +374,11 @@ export class JiraClient {
 			logger.warn({ toolName, result }, "MCP tool returned unexpected format");
 			return result;
 		} catch (error) {
-			// Enhance error message for MCP initialization errors
+			// Enhance error message for common issues
 			const errorMessage = error instanceof Error ? error.message : String(error);
+			const errorString = String(error);
+			
+			// Check for MCP initialization errors
 			if (errorMessage.includes("-32602") || errorMessage.includes("Invalid request parameters")) {
 				logger.error(
 					{ error, toolName },
@@ -371,6 +388,27 @@ export class JiraClient {
 					`MCP error -32602: Invalid request parameters. The MCP server may not be fully initialized yet. Tool: ${toolName}`,
 				);
 			}
+			
+			// Check for proxy/JSON parsing errors
+			if (
+				errorMessage.includes("Expecting value") ||
+				errorMessage.includes("JSONDecodeError") ||
+				errorString.includes("Expecting value: line 1 column 1")
+			) {
+				const proxyError = new Error(
+					`Proxy authentication required: The MCP server is receiving HTML instead of JSON from Jira.\n` +
+					`This typically happens when your corporate proxy requires browser-based authentication.\n` +
+					`\nTo resolve this:\n` +
+					`1. Open your browser and navigate to your Jira URL: ${process.env.JIRA_URL || "(not set)"}\n` +
+					`2. Complete the proxy authentication/login\n` +
+					`3. Try the command again\n` +
+					`\nAlternatively, configure proxy settings or DNS to bypass authentication for the Docker container.\n` +
+					`\nOriginal error: ${errorMessage}`,
+				);
+				logger.error({ error: proxyError, toolName }, "Proxy authentication required");
+				throw proxyError;
+			}
+			
 			logger.error({ error, toolName }, "MCP tool call failed");
 			throw error;
 		}
