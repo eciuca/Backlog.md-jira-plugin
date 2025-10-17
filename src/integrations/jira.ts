@@ -329,10 +329,11 @@ export class JiraClient {
 			if (resultContent && resultContent.length > 0) {
 				const content = resultContent[0];
 				if (content.type === "text" && content.text) {
-					// Check if the text content is an error message
+					// Check if the text content is an error message or proxy redirect
 					if (this.isErrorResponse(content.text)) {
+						const errorMsg = this.formatErrorMessage(content.text, toolName);
 						logger.error({ toolName, response: content.text }, "MCP tool returned error string");
-						throw new Error(`MCP tool ${toolName} failed: ${content.text}`);
+						throw new Error(errorMsg);
 					}
 
 					try {
@@ -376,16 +377,32 @@ export class JiraClient {
 	}
 
 	/**
-	 * Check if a text response is an error message
+	 * Check if a text response is an error message or proxy redirect
 	 */
 	private isErrorResponse(text: string): boolean {
 		const lowerText = text.toLowerCase();
-		return (
+		
+		// Check for proxy/HTML login page indicators
+		const isHtmlResponse = 
+			lowerText.includes("<html") ||
+			lowerText.includes("<!doctype") ||
+			lowerText.includes("<head>") ||
+			lowerText.includes("<body>");
+			
+		const isProxyLogin = 
+			lowerText.includes("login") && isHtmlResponse ||
+			lowerText.includes("authentication required") ||
+			lowerText.includes("proxy authentication") ||
+			lowerText.includes("sign in") && isHtmlResponse;
+		
+		// Check for standard error indicators
+		const isStandardError = 
 			lowerText.includes("error") ||
 			lowerText.includes("failed") ||
 			lowerText.includes("exception") ||
-			lowerText.startsWith("expecting value:")
-		);
+			lowerText.startsWith("expecting value:");
+		
+		return isProxyLogin || isHtmlResponse || isStandardError;
 	}
 
 	/**
@@ -401,6 +418,44 @@ export class JiraClient {
 		}
 		const firstContent = content[0];
 		return firstContent.text || "Unknown error";
+	}
+	
+	/**
+	 * Format error message with specific guidance for common issues
+	 */
+	private formatErrorMessage(errorText: string, toolName: string): string {
+		const lowerText = errorText.toLowerCase();
+		
+		// Detect proxy/HTML login page
+		if (
+			(lowerText.includes("<html") || lowerText.includes("<!doctype")) &&
+			(lowerText.includes("login") || lowerText.includes("sign in") || lowerText.includes("authentication"))
+		) {
+			return (
+				`Proxy authentication required: The MCP server is being redirected to a login page.\n` +
+				`This typically happens when your corporate proxy requires browser-based authentication.\n` +
+				`\nTo resolve this:\n` +
+				`1. Open your browser and navigate to your Jira URL\n` +
+				`2. Complete the proxy authentication/login\n` +
+				`3. Try the command again\n` +
+				`\nAlternatively, configure proxy settings to bypass authentication for the Docker container.`
+			);
+		}
+		
+		// Detect JSON parsing errors (likely HTML response)
+		if (lowerText.includes("expecting value") && lowerText.includes("line 1 column 1")) {
+			return (
+				`Invalid JSON response from Jira API (received HTML instead of JSON).\n` +
+				`This often indicates:\n` +
+				`1. Proxy authentication is required (login in browser first)\n` +
+				`2. The Jira URL is incorrect or unreachable\n` +
+				`3. Network/DNS configuration issues\n` +
+				`\nCurrent tool: ${toolName}`
+			);
+		}
+		
+		// Default error message
+		return `MCP tool ${toolName} failed: ${errorText}`;
 	}
 
 	/**
