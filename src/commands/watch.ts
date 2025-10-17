@@ -28,6 +28,7 @@ interface WatchOptions {
 	interval?: string;
 	strategy?: "prefer-backlog" | "prefer-jira" | "prompt" | "manual";
 	stopOnError?: boolean;
+	verbose?: boolean;
 }
 
 interface WatchStats {
@@ -56,6 +57,12 @@ export async function watch(options: WatchOptions = {}): Promise<void> {
 	const strategy = options.strategy || "prefer-backlog";
 	const stopOnError = options.stopOnError ?? false;
 
+	// Set log level based on verbose flag
+	const originalLevel = logger.level;
+	if (!options.verbose) {
+		logger.level = "warn"; // Show warnings and errors, suppress info/debug in non-verbose mode
+	}
+
 	logger.info(
 		`Starting watch mode (interval: ${options.interval || "60s"}, strategy: ${strategy})`,
 	);
@@ -75,6 +82,8 @@ export async function watch(options: WatchOptions = {}): Promise<void> {
 
 	// Handle graceful shutdown
 	process.on("SIGINT", () => {
+		// Restore original log level before shutdown
+		logger.level = originalLevel;
 		logger.info("\n\nShutting down watch mode...");
 		logger.info(
 			`Stats: ${stats.cycles} cycles, ${stats.totalSynced} synced, ${stats.totalConflicts} conflicts, ${stats.totalErrors} errors`,
@@ -95,6 +104,7 @@ export async function watch(options: WatchOptions = {}): Promise<void> {
 				all: true,
 				strategy,
 				dryRun: false,
+				verbose: options.verbose,
 			});
 
 			// Update stats

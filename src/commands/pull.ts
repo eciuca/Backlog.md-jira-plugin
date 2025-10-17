@@ -27,6 +27,7 @@ export interface PullOptions {
 	jql?: string;
 	force?: boolean;
 	dryRun?: boolean;
+	verbose?: boolean;
 }
 
 export interface PullResult {
@@ -42,6 +43,12 @@ export interface PullResult {
  * Updates existing mapped tasks via CLI only (no direct file writes)
  */
 export async function pull(options: PullOptions = {}): Promise<PullResult> {
+	// Set log level based on verbose flag
+	const originalLevel = logger.level;
+	if (!options.verbose) {
+		logger.level = "error"; // Suppress info/debug logs in non-verbose mode
+	}
+
 	logger.info({ options }, "Starting pull operation");
 
 	const store = new SyncStore();
@@ -144,6 +151,8 @@ export async function pull(options: PullOptions = {}): Promise<PullResult> {
 	} finally {
 		store.close();
 		await jira.close();
+		// Restore original log level
+		logger.level = originalLevel;
 	}
 
 	logger.info({ result }, "Pull operation completed");

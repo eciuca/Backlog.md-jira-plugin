@@ -27,6 +27,7 @@ export interface SyncOptions {
 	all?: boolean;
 	strategy?: ConflictStrategy;
 	dryRun?: boolean;
+	verbose?: boolean;
 }
 
 export interface SyncResult {
@@ -61,6 +62,12 @@ export interface FieldConflict {
  * Bidirectional sync with 3-way merge and conflict resolution
  */
 export async function sync(options: SyncOptions = {}): Promise<SyncResult> {
+	// Set log level based on verbose flag
+	const originalLevel = logger.level;
+	if (!options.verbose) {
+		logger.level = "error"; // Suppress info/debug logs in non-verbose mode
+	}
+
 	logger.info({ options }, "Starting sync operation");
 
 	const store = new SyncStore();
@@ -133,6 +140,8 @@ export async function sync(options: SyncOptions = {}): Promise<SyncResult> {
 		);
 	} finally {
 		store.close();
+		// Restore original log level
+		logger.level = originalLevel;
 	}
 
 	logger.info({ result }, "Sync operation completed");

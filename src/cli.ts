@@ -136,6 +136,7 @@ program
 	.option("--all", "Push all mapped tasks")
 	.option("--force", "Force push even if conflicts detected")
 	.option("--dry-run", "Show what would be pushed without making changes")
+	.option("-v, --verbose", "Show detailed logging output")
 	.action(async (taskIds, options) => {
 		try {
 			const result = await push({
@@ -143,6 +144,7 @@ program
 				all: options.all,
 				force: options.force,
 				dryRun: options.dryRun,
+				verbose: options.verbose,
 			});
 			console.log("\nPush Results:");
 			console.log(`  Pushed: ${result.pushed.length}`);
@@ -172,6 +174,7 @@ program
 	.option("--jql <jql>", "JQL filter for importing issues (requires --import)")
 	.option("--force", "Force pull even if conflicts detected")
 	.option("--dry-run", "Show what would be pulled without making changes")
+	.option("-v, --verbose", "Show detailed logging output")
 	.action(async (taskIds, options) => {
 		try {
 			const result = await pull({
@@ -181,6 +184,7 @@ program
 				jql: options.jql,
 				force: options.force,
 				dryRun: options.dryRun,
+				verbose: options.verbose,
 			});
 			console.log("\nPull Results:");
 			console.log(`  Pulled: ${result.pulled.length}`);
@@ -214,6 +218,7 @@ program
 		"Conflict resolution strategy: prefer-backlog|prefer-jira|prompt|manual",
 	)
 	.option("--dry-run", "Show what would be synced without making changes")
+	.option("-v, --verbose", "Show detailed logging output")
 	.action(async (taskIds, options) => {
 		try {
 			const result = await sync({
@@ -221,6 +226,7 @@ program
 				all: options.all,
 				strategy: options.strategy,
 				dryRun: options.dryRun,
+				verbose: options.verbose,
 			});
 			console.log("\nSync Results:");
 			console.log(`  Synced: ${result.synced.length}`);
@@ -259,12 +265,14 @@ program
 		"prefer-backlog",
 	)
 	.option("--stop-on-error", "Stop watch mode if an error occurs")
+	.option("-v, --verbose", "Show detailed logging output")
 	.action(async (options) => {
 		try {
 			await watch({
 				interval: options.interval,
 				strategy: options.strategy,
 				stopOnError: options.stopOnError,
+				verbose: options.verbose,
 			});
 		} catch (error) {
 			console.error(

@@ -22,6 +22,7 @@ export interface PushOptions {
 	all?: boolean;
 	force?: boolean;
 	dryRun?: boolean;
+	verbose?: boolean;
 }
 
 export interface PushResult {
@@ -36,6 +37,12 @@ export interface PushResult {
  * Updates existing mapped issues or creates new ones
  */
 export async function push(options: PushOptions = {}): Promise<PushResult> {
+	// Set log level based on verbose flag
+	const originalLevel = logger.level;
+	if (!options.verbose) {
+		logger.level = "error"; // Suppress info/debug logs in non-verbose mode
+	}
+
 	logger.info({ options }, "Starting push operation");
 
 	const store = new SyncStore();
@@ -105,6 +112,8 @@ export async function push(options: PushOptions = {}): Promise<PushResult> {
 		);
 	} finally {
 		store.close();
+		// Restore original log level
+		logger.level = originalLevel;
 	}
 
 	logger.info({ result }, "Push operation completed");
