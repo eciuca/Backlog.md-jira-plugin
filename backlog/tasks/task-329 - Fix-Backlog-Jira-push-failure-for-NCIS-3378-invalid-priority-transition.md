@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@myself'
 created_date: '2025-10-17 11:40'
-updated_date: '2025-10-17 11:53'
+updated_date: '2025-10-17 14:32'
 labels:
   - bug
 dependencies: []
@@ -42,9 +42,23 @@ Out of scope:
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Handle invalid project priority mappings with fallback
-- [ ] #2 Skip or map priority update when not available; log clear guidance
+- [x] #1 Handle invalid project priority mappings with fallback
+- [x] #2 Skip or map priority update when not available; log clear guidance
 - [ ] #3 Fix transition lookup for 'In Progress' (map by ID or name per project)
 - [ ] #4 Improve MCP proxy/HTML response detection and error surfacing
-- [ ] #5 Document config: status/priority mapping + mcp.envVars (HTTP(S)_PROXY/NO_PROXY), add troubleshooting steps
+- [x] #5 Document config: status/priority mapping + mcp.envVars (HTTP(S)_PROXY/NO_PROXY), add troubleshooting steps
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Implemented flexible priority mapping with project-specific overrides:
+
+- Added support for project-specific priority mappings in .backlog-jira/config.json
+- Made status mapping case-insensitive for more robust matching
+- Created comprehensive documentation in docs/priority-mapping.md
+- Added proper resource cleanup to prevent dangling connections
+- Ensured CLI commands exit properly after completion
+
+These changes make the plugin more resilient when syncing with Jira projects that have custom priority schemes, such as when projects don't support standard priorities like "Low". The implementation follows the same pattern used for status mappings with both global defaults and project-specific overrides.
+<!-- SECTION:NOTES:END -->
