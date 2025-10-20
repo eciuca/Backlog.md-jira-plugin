@@ -7,6 +7,10 @@ import {
 	type JiraIssue,
 } from "../integrations/jira.ts";
 import { FrontmatterStore } from "../state/store.ts";
+import {
+	autoDiscoverAndSaveMapping,
+	mapJiraUserToBacklog,
+} from "../utils/assignee-mapping.ts";
 import { getTaskFilePath, updateJiraMetadata } from "../utils/frontmatter.ts";
 import { getJiraClientOptions } from "../utils/jira-config.ts";
 import { logger } from "../utils/logger.ts";
@@ -285,6 +289,38 @@ async function getIssuesForImport(
 }
 
 /**
+ * Get a list of unique assignees from existing Backlog tasks
+ * This is used for automatic assignee discovery
+ */
+async function getAvailableBacklogAssignees(
+	backlog: BacklogClient,
+): Promise<string[]> {
+	try {
+		const tasks = await backlog.listTasks();
+		const assignees = new Set<string>();
+		
+		for (const task of tasks) {
+			if (task.assignee) {
+				assignees.add(task.assignee);
+			}
+		}
+		
+		logger.debug(
+			{ count: assignees.size, assignees: Array.from(assignees) },
+			"Retrieved available Backlog assignees for auto-discovery",
+		);
+		
+		return Array.from(assignees);
+	} catch (error) {
+		logger.warn(
+			{ error },
+			"Failed to retrieve Backlog assignees for auto-discovery",
+		);
+		return [];
+	}
+}
+
+/**
  * Pull a single Jira issue to Backlog task
  */
 async function pullTask(
@@ -342,6 +378,35 @@ async function pullTask(
 	// Build CLI updates from Jira issue
 	// Extract project key from Jira issue key (format: PROJECT-123)
 	const projectKey = issue.key.split("-")[0];
+	
+	// Attempt auto-discovery for assignee if no mapping exists
+	if (issue.assignee && !mapJiraUserToBacklog(issue.assignee)) {
+		logger.info(
+			{ taskId, jiraAssignee: issue.assignee },
+			"No explicit mapping found for Jira user during pull, attempting auto-discovery...",
+		);
+		
+		const availableAssignees = await getAvailableBacklogAssignees(backlog);
+		if (availableAssignees.length > 0) {
+			const discovered = autoDiscoverAndSaveMapping(
+				issue.assignee,
+				availableAssignees,
+			);
+			
+			if (discovered) {
+				logger.info(
+					{ taskId, jiraAssignee: issue.assignee, backlogAssignee: discovered },
+					"Successfully auto-discovered and saved assignee mapping during pull",
+				);
+			} else {
+				logger.debug(
+					{ taskId, jiraAssignee: issue.assignee },
+					"No suitable match found during auto-discovery",
+				);
+			}
+		}
+	}
+	
 	const updates = buildBacklogUpdates(issue, task, projectKey);
 
 	if (dryRun) {
@@ -452,9 +517,30 @@ function buildBacklogUpdates(
 		);
 	}
 
-	// Assignee
-	if (issue.assignee && issue.assignee !== currentTask.assignee) {
-		updates.assignee = issue.assignee;
+	// Assignee (with mapping)
+	if (issue.assignee) {
+		const mappedAssignee = mapJiraUserToBacklog(issue.assignee);
+		
+		if (!mappedAssignee) {
+			logger.warn(
+				{ taskId: currentTask.id, jiraAssignee: issue.assignee },
+				"No Backlog assignee mapping found for Jira user. Configure mapping with: backlog-jira map-assignees add",
+			);
+			// Use Jira assignee directly as fallback
+			if (issue.assignee !== currentTask.assignee) {
+				updates.assignee = issue.assignee;
+			}
+		} else if (mappedAssignee !== currentTask.assignee) {
+			updates.assignee = mappedAssignee;
+			logger.debug(
+				{
+					taskId: currentTask.id,
+					jiraAssignee: issue.assignee,
+					backlogAssignee: mappedAssignee,
+				},
+				"Mapped Jira user to Backlog assignee",
+			);
+		}
 	}
 
 	// Labels
@@ -614,12 +700,54 @@ async function importJiraIssue(
 		return `dry-run-${jiraKey}`;
 	}
 
+	// Map assignee from Jira to Backlog format
+	let mappedAssignee = issue.assignee
+		? mapJiraUserToBacklog(issue.assignee)
+		: undefined;
+	
+	// If no mapping exists, attempt automatic discovery
+	if (issue.assignee && !mappedAssignee) {
+		logger.info(
+			{ jiraKey, jiraAssignee: issue.assignee },
+			"No explicit mapping found for Jira user, attempting auto-discovery...",
+		);
+		
+		// Get available Backlog assignees for matching
+		const availableAssignees = await getAvailableBacklogAssignees(backlog);
+		
+		if (availableAssignees.length > 0) {
+			// Attempt auto-discovery and save mapping if found
+			const discovered = autoDiscoverAndSaveMapping(
+				issue.assignee,
+				availableAssignees,
+			);
+			
+			if (discovered) {
+				mappedAssignee = discovered;
+				logger.info(
+					{ jiraKey, jiraAssignee: issue.assignee, backlogAssignee: discovered },
+					"Successfully auto-discovered and saved assignee mapping",
+				);
+			} else {
+				logger.warn(
+					{ jiraKey, jiraAssignee: issue.assignee },
+					"No suitable match found during auto-discovery. Using Jira identifier as fallback. Configure explicit mapping with: backlog-jira map-assignees add",
+				);
+			}
+		} else {
+			logger.warn(
+				{ jiraKey, jiraAssignee: issue.assignee },
+				"No Backlog assignees available for auto-discovery. Using Jira identifier as fallback.",
+			);
+		}
+	}
+
 	// Create Backlog task
 	const taskId = await backlog.createTask({
 		title: issue.summary,
 		description: cleanDescription,
 		status: mapJiraStatusToBacklog(issue.status, projectKey),
-		assignee: issue.assignee,
+		assignee: mappedAssignee || issue.assignee,
 		labels: issue.labels,
 		priority: issue.priority,
 		// Add acceptance criteria during creation
