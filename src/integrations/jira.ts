@@ -932,6 +932,41 @@ export class JiraClient {
 	}
 
 	/**
+	 * Search for Jira users by name or email
+	 */
+	async searchUsers(query: string): Promise<Array<{
+		displayName: string;
+		emailAddress?: string;
+		accountId: string;
+	}>> {
+		try {
+			// Use jira_search_user MCP tool with CQL query
+			const cql = `user.fullname ~ "${query.replace(/"/g, '\\"')}"`;
+			const result = (await this.callMcpTool("jira_search_user", {
+				query: cql,
+				limit: 10,
+			})) as {
+				results: Array<{
+					user: {
+						displayName: string;
+						emailAddress?: string;
+						accountId: string;
+					};
+				}>;
+			};
+
+			logger.debug(
+				{ query, count: result.results.length },
+				"Searched Jira users",
+			);
+			return result.results.map(r => r.user);
+		} catch (error) {
+			logger.error({ error, query }, "Failed to search Jira users");
+			throw error;
+		}
+	}
+
+	/**
 	 * Create a new Jira issue
 	 */
 	async createIssue(

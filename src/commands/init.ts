@@ -18,6 +18,8 @@ export interface JiraConfig {
 	};
 	backlog: {
 		statusMapping: Record<string, string[]>;
+		assigneeMapping?: Record<string, string>;
+		autoMappedAssignees?: Record<string, string>;
 	};
 	sync: {
 		conflictStrategy: "prompt" | "prefer-backlog" | "prefer-jira";

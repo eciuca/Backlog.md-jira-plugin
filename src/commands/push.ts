@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { BacklogClient, type BacklogTask } from "../integrations/backlog.ts";
 import { JiraClient, type JiraIssue } from "../integrations/jira.ts";
 import { FrontmatterStore } from "../state/store.ts";
+import { mapBacklogAssigneeToJira } from "../utils/assignee-mapping.ts";
 import { getTaskFilePath, updateJiraMetadata } from "../utils/frontmatter.ts";
 import { getJiraClientOptions } from "../utils/jira-config.ts";
 import { logger } from "../utils/logger.ts";
@@ -304,9 +305,21 @@ async function pushTask(
 					)
 				: task.description;
 
+			// Map assignee using assignee mapping
+			const mappedAssignee = task.assignee
+				? mapBacklogAssigneeToJira(task.assignee)
+				: undefined;
+
+			if (task.assignee && !mappedAssignee) {
+				logger.warn(
+					{ taskId, assignee: task.assignee },
+					"No Jira user mapping found for Backlog assignee. Configure mapping with: backlog-jira map-assignees add",
+				);
+			}
+
 			const issue = await jira.createIssue(projectKey, issueType, task.title, {
 				description: descriptionWithAc,
-				assignee: task.assignee,
+				assignee: mappedAssignee || undefined,
 				priority: task.priority
 					? mapBacklogPriorityToJira(task.priority)
 					: undefined,
@@ -411,9 +424,26 @@ async function buildJiraUpdates(
 		logger.debug({ taskId: task.id }, "Updating Jira description with AC");
 	}
 
-	// Assignee
-	if (task.assignee && task.assignee !== currentIssue.assignee) {
-		fields.assignee = task.assignee;
+	// Assignee (with mapping)
+	if (task.assignee) {
+		const mappedAssignee = mapBacklogAssigneeToJira(task.assignee);
+		
+		if (!mappedAssignee) {
+			logger.warn(
+				{ taskId: task.id, assignee: task.assignee },
+				"No Jira user mapping found for Backlog assignee. Configure mapping with: backlog-jira map-assignees add",
+			);
+		} else if (mappedAssignee !== currentIssue.assignee) {
+			fields.assignee = mappedAssignee;
+			logger.debug(
+				{
+					taskId: task.id,
+					backlogAssignee: task.assignee,
+					jiraAssignee: mappedAssignee,
+				},
+				"Mapped Backlog assignee to Jira user",
+			);
+		}
 	}
 
 	// Priority (needs mapping from Backlog priority to Jira priority)
