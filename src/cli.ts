@@ -12,6 +12,7 @@ import { createIssue } from "./commands/create-issue.ts";
 import { doctorCommand } from "./commands/doctor.ts";
 import { initCommand } from "./commands/init.ts";
 import { registerMapCommand } from "./commands/map.ts";
+import { registerMapAssigneesCommand } from "./commands/map-assignees.ts";
 import { registerMcpCommand } from "./commands/mcp.ts";
 import { pull } from "./commands/pull.ts";
 import { push } from "./commands/push.ts";
@@ -91,6 +92,7 @@ program
 
 // Phase 3: Mapping, Status, and MCP Commands
 registerMapCommand(program);
+registerMapAssigneesCommand(program);
 registerMcpCommand(program);
 registerStatusCommand(program);
 registerViewCommand(program);
