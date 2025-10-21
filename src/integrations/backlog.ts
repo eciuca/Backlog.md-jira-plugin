@@ -347,7 +347,9 @@ export class BacklogClient {
 				task.status = line
 					.replace("Status:", "")
 					.trim()
-					.replace(/^[○◐●]\s*/, "");
+					// Remove all possible Backlog.md status emojis:
+					// ○ (To Do), ◐ (partially filled), ◒ (In Progress), ● (Blocked), ✔ (Done), ◆ (Review), ▣ (Testing)
+					.replace(/^[○◐◒●✔◆▣]\s*/, "");
 			} else if (line.startsWith("Assignee:")) {
 				task.assignee = line.replace("Assignee:", "").trim().replace(/^@/, "");
 			} else if (line.startsWith("Labels:")) {
