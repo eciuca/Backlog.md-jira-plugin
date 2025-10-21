@@ -1,11 +1,11 @@
 ---
 id: task-331
 title: Implement assignee mapping configuration similar to status mapping
-status: In Progress
+status: Done
 assignee:
   - '@agent-warp'
 created_date: '2025-10-19 05:31'
-updated_date: '2025-10-19 09:28'
+updated_date: '2025-10-21 06:59'
 labels:
   - enhancement
   - jira-integration
@@ -91,4 +91,10 @@ The infrastructure for storing auto-mapped assignees is in place (autoMappedAssi
 
 **Follow-up Task Created**: task-331.1
 Automatic assignee discovery during Jira import has been scoped as a separate task. This will implement name-based matching and automatic saving of discovered mappings to config.json when new Jira users are encountered during import/pull operations.
+
+Task completion status:
+- All core assignee mapping functionality is implemented
+- AC#7 (automatic discovery during sync) is intentionally deferred to task-331.1
+- The infrastructure for auto-mapping exists but discovery is a separate feature
+- Ready to close this task and proceed with task-331.1 for the auto-discovery feature
 <!-- SECTION:NOTES:END -->

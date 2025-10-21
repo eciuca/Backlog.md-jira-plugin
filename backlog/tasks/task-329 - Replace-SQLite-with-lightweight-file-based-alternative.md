@@ -3,9 +3,9 @@ id: task-329
 title: Replace SQLite with lightweight file-based alternative
 status: Done
 assignee:
-  - '@agent'
+  - '@agent-warp'
 created_date: '2025-10-17 10:22'
-updated_date: '2025-10-17 10:31'
+updated_date: '2025-10-21 07:27'
 labels:
   - refactoring
   - architecture
