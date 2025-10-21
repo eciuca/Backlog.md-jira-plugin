@@ -232,27 +232,84 @@ export async function findTransitionForStatus(
 /**
  * Find the best matching transition from available options
  *
- * Prioritizes exact matches, then case-insensitive matches
+ * Prioritizes destination status matches, then falls back to transition name matches
+ * when the destination status is not available from the MCP server
  */
 function findBestTransitionMatch(
 	transitions: JiraTransition[],
 	acceptableStatuses: string[],
 ): JiraTransition | null {
-	// First pass: exact match
+	// First pass: exact match on destination status name
 	for (const acceptable of acceptableStatuses) {
-		const exact = transitions.find((t) => t.to.name === acceptable);
+		const exact = transitions.find(
+			(t) => t.to.name && t.to.name === acceptable,
+		);
 		if (exact) {
 			return exact;
 		}
 	}
 
-	// Second pass: case-insensitive match
+	// Second pass: case-insensitive match on destination status name
 	for (const acceptable of acceptableStatuses) {
 		const caseInsensitive = transitions.find(
-			(t) => t.to.name.toLowerCase() === acceptable.toLowerCase(),
+			(t) =>
+				t.to.name &&
+				t.to.name.toLowerCase() === acceptable.toLowerCase(),
 		);
 		if (caseInsensitive) {
 			return caseInsensitive;
+		}
+	}
+
+	// Third pass: match by transition name (fallback for MCP servers that don't provide 'to' field)
+	// Common transition name patterns:
+	// - "Resolve Issue" -> Done/Resolved
+	// - "Close Issue" -> Done/Closed
+	// - "Start Progress" -> In Progress
+	// - "Stop Progress" -> To Do
+	for (const acceptable of acceptableStatuses) {
+		const lowerAcceptable = acceptable.toLowerCase();
+		const nameMatch = transitions.find((t) => {
+			const lowerTransitionName = t.name.toLowerCase();
+			
+			// Check if transition name contains the acceptable status
+			if (lowerTransitionName.includes(lowerAcceptable)) {
+				return true;
+			}
+			
+			// Common patterns
+			if (lowerAcceptable === "done" || lowerAcceptable === "closed" || lowerAcceptable === "resolved" || lowerAcceptable === "complete") {
+				if (
+					lowerTransitionName.includes("resolve") ||
+					lowerTransitionName.includes("close") ||
+					lowerTransitionName.includes("done") ||
+					lowerTransitionName.includes("complete")
+				) {
+					return true;
+				}
+			}
+			
+			if (lowerAcceptable === "in progress" || lowerAcceptable === "in development") {
+				if (
+					lowerTransitionName.includes("start") ||
+					lowerTransitionName.includes("progress")
+				) {
+					return true;
+				}
+			}
+			
+			return false;
+		});
+		
+		if (nameMatch) {
+			logger.debug(
+				{
+					transitionName: nameMatch.name,
+					targetStatus: acceptable,
+				},
+				"Matched transition by name (destination status not provided by MCP)",
+			);
+			return nameMatch;
 		}
 	}
 

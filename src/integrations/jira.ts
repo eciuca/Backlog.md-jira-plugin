@@ -848,24 +848,48 @@ export class JiraClient {
 	 */
 	async getTransitions(issueKey: string): Promise<JiraTransition[]> {
 		try {
-			const result = (await this.callMcpTool("jira_get_transitions", {
+			const result = await this.callMcpTool("jira_get_transitions", {
 				issue_key: issueKey,
-			})) as {
-				transitions: Array<{
+			});
+
+			// Handle different response formats from MCP server
+			let transitions: Array<{
+				id: string | number;
+				name: string;
+				to?: {
 					id: string;
 					name: string;
-					to: {
-						id: string;
-						name: string;
-					};
-				}>;
-			};
+				};
+			}>;
+
+			if (Array.isArray(result)) {
+				// MCP server returns a plain array
+				transitions = result;
+			} else if (result && typeof result === 'object' && 'transitions' in result) {
+				// Alternative format with transitions wrapper
+				transitions = (result as { transitions: typeof transitions }).transitions;
+			} else {
+				logger.error({ result, issueKey }, "Unexpected response format from jira_get_transitions");
+				throw new Error(`Invalid response format from jira_get_transitions for ${issueKey}`);
+			}
+
+			// Map to JiraTransition format, providing placeholder 'to' field if missing
+			const mapped: JiraTransition[] = transitions.map((t) => {
+				return {
+					id: String(t.id),
+					name: t.name,
+					to: t.to || {
+						id: "",
+						name: "", // Will be matched by transition name instead
+					},
+				};
+			});
 
 			logger.debug(
-				{ issueKey, count: result.transitions.length },
+				{ issueKey, count: mapped.length, transitions: mapped },
 				"Retrieved Jira transitions",
 			);
-			return result.transitions;
+			return mapped;
 		} catch (error) {
 			if (this.silentMode) {
 				logger.debug({ issueKey, err: error instanceof Error ? error.message : String(error) }, "Failed to get Jira transitions");
@@ -967,6 +991,52 @@ export class JiraClient {
 	}
 
 	/**
+	 * Resolve a user identifier (displayName, email, or accountId) to a Jira account ID
+	 * This handles cases where the mapping config stores displayNames or emails instead of account IDs
+	 */
+	async resolveUserToAccountId(userIdentifier: string): Promise<string | null> {
+		try {
+			// If it looks like an account ID already (format: 557058:xxx or 5-digit string), return it
+			if (/^[0-9a-f]{24}$/.test(userIdentifier) || /^[0-9]{5,}:[a-f0-9-]+$/.test(userIdentifier)) {
+				logger.debug({ userIdentifier }, "User identifier appears to be an account ID already");
+				return userIdentifier;
+			}
+
+			// Try to search for the user
+			const users = await this.searchUsers(userIdentifier);
+			
+			if (users.length === 0) {
+				logger.warn({ userIdentifier }, "No Jira user found matching identifier");
+				return null;
+			}
+
+			// If we get an exact match by displayName or email, use that
+			const exactMatch = users.find(
+				u => u.displayName === userIdentifier || u.emailAddress === userIdentifier
+			);
+			
+			if (exactMatch) {
+				logger.debug(
+					{ userIdentifier, accountId: exactMatch.accountId },
+					"Resolved user identifier to account ID (exact match)"
+				);
+				return exactMatch.accountId;
+			}
+
+			// Otherwise, take the first result (fuzzy match)
+			const firstMatch = users[0];
+			logger.debug(
+				{ userIdentifier, accountId: firstMatch.accountId, displayName: firstMatch.displayName },
+				"Resolved user identifier to account ID (first match)"
+			);
+			return firstMatch.accountId;
+		} catch (error) {
+			logger.error({ error, userIdentifier }, "Failed to resolve user to account ID");
+			return null;
+		}
+	}
+
+	/**
 	 * Create a new Jira issue
 	 */
 	async createIssue(
@@ -1017,31 +1087,56 @@ export class JiraClient {
 				};
 			}
 
-			const result = (await this.callMcpTool("jira_create_issue", input)) as {
-				key: string;
-				id: string;
-				fields: {
-					summary: string;
-					description?: string;
-					status: { name: string };
-					issuetype: { name: string };
-					created: string;
-					updated: string;
-					[key: string]: unknown;
-				};
-			};
+		const result = await this.callMcpTool("jira_create_issue", input);
 
-			const issue: JiraIssue = {
-				key: result.key,
-				id: result.id,
-				summary: result.fields.summary,
-				description: result.fields.description as string | undefined,
-				status: result.fields.status.name,
-				issueType: result.fields.issuetype.name,
-				created: result.fields.created,
-				updated: result.fields.updated,
-				fields: result.fields,
+		// Validate response structure
+		if (!result || typeof result !== "object") {
+			logger.error({ result, projectKey, issueType }, "Invalid response from jira_create_issue: not an object");
+			throw new Error(
+				`Invalid response from jira_create_issue: expected object, got ${typeof result}`,
+			);
+		}
+
+		const typedResult = result as {
+			key?: string;
+			id?: string;
+			fields?: {
+				summary?: string;
+				description?: string;
+				status?: { name?: string };
+				issuetype?: { name?: string };
+				created?: string;
+				updated?: string;
+				[key: string]: unknown;
 			};
+		};
+
+		// Validate required fields
+		if (!typedResult.key || !typedResult.id) {
+			logger.error({ result: typedResult, projectKey }, "Invalid response: missing key or id");
+			throw new Error(
+				`Invalid response from jira_create_issue: missing required fields (key, id)`,
+			);
+		}
+
+		if (!typedResult.fields) {
+			logger.error({ result: typedResult, projectKey }, "Invalid response: missing fields object");
+			throw new Error(
+				`Invalid response from jira_create_issue: missing fields object`,
+			);
+		}
+
+		const issue: JiraIssue = {
+			key: typedResult.key,
+			id: typedResult.id,
+			summary: typedResult.fields.summary || summary, // Fallback to input summary
+			description: typedResult.fields.description as string | undefined,
+			status: typedResult.fields.status?.name || "Unknown",
+			issueType: typedResult.fields.issuetype?.name || issueType, // Fallback to input issueType
+			created: typedResult.fields.created || new Date().toISOString(),
+			updated: typedResult.fields.updated || new Date().toISOString(),
+			fields: typedResult.fields,
+		};
 
 			logger.info(
 				{ issueKey: issue.key, projectKey, issueType },
