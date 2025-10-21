@@ -448,7 +448,7 @@ async function buildJiraUpdates(
 
 	// Priority (needs mapping from Backlog priority to Jira priority)
 	if (task.priority) {
-		const mappedPriority = mapBacklogPriorityToJira(task.priority, projectKey);
+		const mappedPriority = mapBacklogPriorityToJira(task.priority);
 		if (mappedPriority && mappedPriority !== currentIssue.priority) {
 			fields.priority = mappedPriority;
 			logger.debug(
@@ -456,7 +456,6 @@ async function buildJiraUpdates(
 					taskId: task.id,
 					backlogPriority: task.priority,
 					jiraPriority: mappedPriority,
-					projectKey,
 				},
 				"Mapped Backlog priority to Jira priority",
 			);
