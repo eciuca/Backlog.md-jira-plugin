@@ -351,6 +351,20 @@ export class JiraClient {
 					logger.error({ toolName, error: errorText, resultContent: result.content }, "MCP tool returned error");
 				}
 				
+				// Check if this is a Jira API v2 deprecation error
+				if (errorText.includes("/rest/api/3/search") || errorText.includes("API has been removed")) {
+					throw new Error(
+						`Jira API v2 deprecated: Your Jira server has disabled the v2 REST API.\n` +
+						`\nThe MCP Atlassian server (${this.dockerImage}) uses the deprecated v2 API.\n` +
+						`\nPossible solutions:\n` +
+						`1. Check if a newer version of mcp-atlassian is available that supports v3\n` +
+						`2. Report this issue to: https://github.com/sooperset/mcp-atlassian/issues\n` +
+						`3. Temporarily re-enable v2 API in Jira (if possible)\n` +
+						`\nFor details, see: https://developer.atlassian.com/changelog/#CHANGE-2046\n` +
+						`\nOriginal error: ${errorText}`,
+					);
+				}
+				
 				// Check if this is a proxy/JSON error
 				if (errorText.includes("Expecting value") || errorText.includes("JSONDecodeError")) {
 					throw new Error(
