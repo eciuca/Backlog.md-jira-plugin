@@ -125,10 +125,26 @@ export function stripAcceptanceCriteriaFromDescription(
 export function mergeDescriptionWithAc(
 	description: string,
 	acceptanceCriteria: Array<{ text: string; checked: boolean }>,
+	implementationPlan?: string,
+	implementationNotes?: string,
 ): string {
 	const cleanDescription = stripAcceptanceCriteriaFromDescription(description);
 	const acSection = formatAcceptanceCriteriaForJira(acceptanceCriteria);
-	return cleanDescription + acSection;
+	
+	// Build the full description with all sections
+	let fullDescription = cleanDescription + acSection;
+	
+	// Add Implementation Plan if present
+	if (implementationPlan && implementationPlan.trim()) {
+		fullDescription += `\n\nImplementation Plan:\n${implementationPlan.trim()}`;
+	}
+	
+	// Add Implementation Notes if present
+	if (implementationNotes && implementationNotes.trim()) {
+		fullDescription += `\n\nImplementation Notes:\n${implementationNotes.trim()}`;
+	}
+	
+	return fullDescription;
 }
 
 /**

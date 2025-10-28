@@ -297,11 +297,13 @@ async function pushTask(
 				"DRY RUN: Would create new Jira issue",
 			);
 		} else {
-			// Merge description with AC for new issue creation
+			// Merge description with AC, plan, and notes for new issue creation
 			const descriptionWithAc = task.acceptanceCriteria
 				? mergeDescriptionWithAc(
 						task.description || "",
 						task.acceptanceCriteria,
+						task.implementationPlan,
+						task.implementationNotes,
 					)
 				: task.description;
 
@@ -400,10 +402,15 @@ async function buildJiraUpdates(
 		fields.summary = task.title;
 	}
 
-	// Description with AC
+	// Description with AC, plan, and notes
 	// Always merge description with AC when task has AC
 	const taskDescriptionWithAc = task.acceptanceCriteria
-		? mergeDescriptionWithAc(task.description || "", task.acceptanceCriteria)
+		? mergeDescriptionWithAc(
+				task.description || "",
+				task.acceptanceCriteria,
+				task.implementationPlan,
+				task.implementationNotes,
+			)
 		: task.description || "";
 
 	// Compare with current Jira description (also strip AC for fair comparison)
