@@ -11,6 +11,7 @@ export interface JiraMetadata {
 /**
  * Extract frontmatter from a markdown file
  * Returns the frontmatter object and the content without frontmatter
+ * Handles YAML multi-line syntax (>-, |, etc.) and quoted values
  */
 export function parseFrontmatter(content: string): {
 	frontmatter: Record<string, unknown>;
@@ -25,36 +26,91 @@ export function parseFrontmatter(content: string): {
 	const frontmatterYaml = frontmatterMatch[1];
 	const body = frontmatterMatch[2];
 
-	// Parse YAML frontmatter (simple key: value format)
+	// Parse YAML frontmatter with support for multi-line values
 	const frontmatter: Record<string, unknown> = {};
 	const lines = frontmatterYaml.split("\n");
+	let currentKey: string | null = null;
+	let currentValue = "";
+	let multilineMode: "none" | "folded" | "literal" = "none";
 
-	for (const line of lines) {
-		const match = line.match(/^([^:]+):\s*(.*)$/);
-		if (match) {
-			const key = match[1].trim();
-			let value: unknown = match[2].trim();
+	for (let i = 0; i < lines.length; i++) {
+		const line = lines[i];
 
-			// Handle arrays: [item1, item2]
-			if (value && typeof value === "string") {
-				const arrayMatch = value.match(/^\[(.*)\]$/);
-				if (arrayMatch) {
-					value = arrayMatch[1]
-						.split(",")
-						.map((v) => v.trim())
-						.filter((v) => v);
-				}
+		// Check for new key-value pair
+		const keyMatch = line.match(/^([^:]+):\s*(.*)$/);
+
+		if (keyMatch && !line.startsWith(" ") && !line.startsWith("\t")) {
+			// Save previous key-value if exists
+			if (currentKey) {
+				frontmatter[currentKey] = parseYamlValue(currentValue.trim(), multilineMode);
 			}
 
-			frontmatter[key] = value;
+			currentKey = keyMatch[1].trim();
+			const valueStart = keyMatch[2].trim();
+
+			// Check for multi-line indicators
+			if (valueStart === ">" || valueStart === ">-") {
+				multilineMode = "folded";
+				currentValue = "";
+			} else if (valueStart === "|" || valueStart === "|-") {
+				multilineMode = "literal";
+				currentValue = "";
+			} else {
+				multilineMode = "none";
+				currentValue = valueStart;
+			}
+		} else if (currentKey && multilineMode !== "none" && (line.startsWith(" ") || line.startsWith("\t"))) {
+			// Continuation of multi-line value
+			const indentedLine = line.replace(/^[ \t]+/, "");
+			if (currentValue) {
+				currentValue += multilineMode === "literal" ? "\n" + indentedLine : " " + indentedLine;
+			} else {
+				currentValue = indentedLine;
+			}
 		}
+	}
+
+	// Save last key-value pair
+	if (currentKey) {
+		frontmatter[currentKey] = parseYamlValue(currentValue.trim(), multilineMode);
 	}
 
 	return { frontmatter, body };
 }
 
 /**
+ * Parse a YAML value handling different types and quoting
+ */
+function parseYamlValue(value: string, multilineMode: "none" | "folded" | "literal"): unknown {
+	if (!value) {
+		return "";
+	}
+
+	// Multi-line values are already processed, just return as string
+	if (multilineMode !== "none") {
+		return value;
+	}
+
+	// Handle arrays: [item1, item2]
+	const arrayMatch = value.match(/^\[(.*)\]$/);
+	if (arrayMatch) {
+		return arrayMatch[1]
+			.split(",")
+			.map((v) => v.trim())
+			.filter((v) => v);
+	}
+
+	// Handle quoted strings (single or double quotes)
+	if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+		return value.slice(1, -1);
+	}
+
+	return value;
+}
+
+/**
  * Serialize frontmatter object to YAML format
+ * Properly quotes values with special characters
  */
 function serializeFrontmatter(frontmatter: Record<string, unknown>): string {
 	const lines: string[] = [];
@@ -63,11 +119,33 @@ function serializeFrontmatter(frontmatter: Record<string, unknown>): string {
 		if (Array.isArray(value)) {
 			lines.push(`${key}: [${value.join(", ")}]`);
 		} else if (value !== undefined && value !== null) {
-			lines.push(`${key}: ${value}`);
+			const serializedValue = serializeYamlValue(value);
+			lines.push(`${key}: ${serializedValue}`);
 		}
 	}
 
 	return lines.join("\n");
+}
+
+/**
+ * Serialize a value to YAML format with proper quoting
+ * Values with special YAML characters should be quoted
+ */
+function serializeYamlValue(value: unknown): string {
+	if (typeof value !== "string") {
+		return String(value);
+	}
+
+	// Check if value needs quoting (contains YAML special chars or starts with special chars)
+	const needsQuoting = /[:\[\]{}#&*!|>'"%@`]|^[-?]/.test(value) || value.trim() !== value;
+
+	if (needsQuoting) {
+		// Use double quotes and escape any internal double quotes
+		const escaped = value.replace(/"/g, '\\"');
+		return `"${escaped}"`;
+	}
+
+	return value;
 }
 
 /**
