@@ -14,6 +14,7 @@ import {
 import { getTaskFilePath, updateJiraMetadata } from "../utils/frontmatter.ts";
 import { getJiraClientOptions } from "../utils/jira-config.ts";
 import { logger } from "../utils/logger.ts";
+import { sanitizeTitle } from "../utils/title-sanitizer.ts";
 import {
 	computeHash,
 	normalizeBacklogTask,
@@ -486,9 +487,10 @@ function buildBacklogUpdates(
 } {
 	const updates: Record<string, unknown> = {};
 
-	// Summary -> Title
-	if (issue.summary !== currentTask.title) {
-		updates.title = issue.summary;
+	// Summary -> Title (sanitized for YAML safety)
+	const sanitizedTitle = sanitizeTitle(issue.summary);
+	if (sanitizedTitle !== currentTask.title) {
+		updates.title = sanitizedTitle;
 	}
 
 	// Description (without AC section - AC synced separately)
@@ -741,9 +743,9 @@ async function importJiraIssue(
 		}
 	}
 
-	// Create Backlog task
+	// Create Backlog task with sanitized title
 	const taskId = await backlog.createTask({
-		title: issue.summary,
+		title: sanitizeTitle(issue.summary),
 		description: cleanDescription,
 		status: mapJiraStatusToBacklog(issue.status, projectKey),
 		assignee: mappedAssignee || issue.assignee,
